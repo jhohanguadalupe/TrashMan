@@ -51,6 +51,23 @@ TrashGame.Sound = {
     } catch (error) { return false; }
   },
 
+  playDamageSound(volume = 0.72) {
+    if (this.muted || typeof Audio === 'undefined') return false;
+    const url = 'assets/sounds/gameplay/player_damage.mpeg';
+    try {
+      let source = this.assetCache[url];
+      if (!source) {
+        source = new Audio(url);
+        source.preload = 'auto';
+        this.assetCache[url] = source;
+      }
+      const voice = source.cloneNode();
+      voice.volume = Math.max(0, Math.min(1, volume));
+      voice.play().catch(() => {});
+      return true;
+    } catch (error) { return false; }
+  },
+
   setLoopAudio(channel, path, volume = 0.3) {
     const current = this.loopAudio[channel];
     const src = `assets/sounds/${path}.ogg`;

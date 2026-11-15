@@ -953,6 +953,7 @@ TrashGame.Main = {
 
   playerTakeDamage(dmg) {
     if (this.player.isDead) return;
+    TrashGame.Sound.playDamageSound();
     this.player.hp = Math.max(0, this.player.hp - dmg);
     this.flashPlayerRed();
     this.updatePlayerHpBar();
