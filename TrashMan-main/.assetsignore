@@ -1,5 +1,8 @@
 # Do not upload the downloadable project archive as a Worker asset (it exceeds 25 MiB).
 *.zip
+worker.js
+wrangler.jsonc
+.assetsignore
 
 # Development/server files are kept in the project but are not browser assets.
 server/

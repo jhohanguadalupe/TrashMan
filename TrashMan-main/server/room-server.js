@@ -68,7 +68,7 @@ wss.on('connection', socket => {
       relay(socket, { type: 'player-state', player: publicPlayer(player) });
     } else if (message.type === 'start') {
       if (player.id !== room.hostId) return send(socket, { type: 'error', message: 'Solo el anfitrión puede iniciar la partida.' });
-      const mapId = ['playa', 'bosque', 'rio', 'ciudad'].includes(message.session && message.session.mapId) ? message.session.mapId : 'playa';
+      const mapId = ['playa', 'bosque', 'rio', 'ciudad', 'manglar', 'puerto'].includes(message.session && message.session.mapId) ? message.session.mapId : 'playa';
       const difficulty = ['easy', 'medium', 'hard'].includes(message.session && message.session.difficulty) ? message.session.difficulty : 'medium';
       room.session = { mapId, difficulty, seed: Math.floor(Math.random() * 2147483646) + 1 };
       room.collected.clear();

@@ -35,8 +35,9 @@ TrashGame.OnlineRoom = {
     const params = new URLSearchParams(location.search);
     const configured = params.get('ws');
     if (configured) return configured;
+    if (location.protocol === 'file:') return 'ws://127.0.0.1:8787/api/room';
     const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
-    return `${protocol}//${location.hostname}:8080`;
+    return `${protocol}//${location.host}/api/room`;
   },
   connect() {
     if (this.socket && this.socket.readyState === WebSocket.OPEN) return Promise.resolve(this.socket);
@@ -51,7 +52,7 @@ TrashGame.OnlineRoom = {
         if (socket.readyState !== WebSocket.OPEN) {
           socket.close();
           this._connectPromise = null;
-          reject(new Error('No se pudo conectar. Inicia el servidor de salas incluido en la carpeta server.'));
+          reject(new Error('No se pudo conectar al servidor de salas. Comprueba que el Worker esté publicado.'));
         }
       }, 4500);
       socket.addEventListener('open', () => { clearTimeout(timeout); this.isConnected = true; resolve(socket); }, { once: true });
@@ -67,7 +68,7 @@ TrashGame.OnlineRoom = {
       socket.addEventListener('error', () => {
         clearTimeout(timeout);
         this._connectPromise = null;
-        reject(new Error('Servidor no disponible. Inicia server/room-server.js para abrir la sala online.'));
+        reject(new Error('Servidor de salas no disponible. Publica el Worker o ejecuta `npx wrangler dev` en local.'));
       }, { once: true });
     });
     return this._connectPromise;
@@ -76,7 +77,13 @@ TrashGame.OnlineRoom = {
     const code = `TM-${Math.floor(1000 + Math.random() * 9000)}`;
     this.roomCode = code;
     this.role = 'host';
-    await this.connect();
+    try {
+      await this.connect();
+    } catch (error) {
+      this.role = '';
+      this.roomCode = '';
+      throw error;
+    }
     this.socket.send(JSON.stringify({ type: 'create', code, mapId, name: TrashGame.State.player.name, character: TrashGame.State.player.character }));
     return new Promise((resolve, reject) => {
       this._pendingCreate = { resolve, reject };
