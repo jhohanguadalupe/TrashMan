@@ -27,10 +27,6 @@
     }
     try {
       await request.call(root, { navigationUI: 'hide' });
-      const orientation = screen.orientation;
-      if (orientation && orientation.lock && matchMedia('(pointer: coarse)').matches) {
-        try { await orientation.lock('landscape'); } catch (_) { /* Some devices only allow this from installed apps. */ }
-      }
       dismissed = true;
       if (gate()) gate().classList.add('hidden');
       updateButtons();

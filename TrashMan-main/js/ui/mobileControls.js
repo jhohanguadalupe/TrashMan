@@ -108,7 +108,7 @@ TrashGame.MobileControls = {
     const main = TrashGame.Main;
     if (action === 'jump') main.keys.Space = true;
     if (action === 'run') main.mobileInput.sprint = true;
-    if (action === 'clean') main.keys.MouseDown = true;
+    if (action === 'clean') main.mobileInput.clean = true;
     if (action === 'shoot') {
       main.onShootTrigger();
       this.repeatTimer = window.setInterval(() => {
@@ -127,7 +127,7 @@ TrashGame.MobileControls = {
     if (!TrashGame.Main) return;
     if (action === 'jump') TrashGame.Main.keys.Space = false;
     if (action === 'run') TrashGame.Main.mobileInput.sprint = false;
-    if (action === 'clean') TrashGame.Main.keys.MouseDown = false;
+    if (action === 'clean') TrashGame.Main.mobileInput.clean = false;
   },
 
   releaseAll() {
@@ -140,6 +140,7 @@ TrashGame.MobileControls = {
       main.mobileInput.x = 0;
       main.mobileInput.y = 0;
       main.mobileInput.sprint = false;
+      main.mobileInput.clean = false;
       main.keys.Space = false;
       main.keys.MouseDown = false;
     }

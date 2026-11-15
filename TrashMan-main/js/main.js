@@ -67,7 +67,10 @@ TrashGame.Main = {
     Space: false, ShiftLeft: false, ShiftRight: false,
     MouseDown: false
   },
-  mobileInput: { x: 0, y: 0, sprint: false },
+  mobileInput: { x: 0, y: 0, sprint: false, clean: false },
+  resizeObserver: null,
+  damageFlashTimer: null,
+  damagedMaterials: [],
   touchLook: null,
 
   init() {
@@ -128,6 +131,12 @@ TrashGame.Main = {
 
     // 8. Event Listeners & Controls
     this.setupListeners(container);
+    if (window.ResizeObserver) {
+      this.resizeObserver = new ResizeObserver(() => this.onResize());
+      this.resizeObserver.observe(container);
+    }
+    if (window.visualViewport) window.visualViewport.addEventListener('resize', () => this.onResize());
+    window.addEventListener('orientationchange', () => setTimeout(() => this.onResize(), 120));
 
     // 9. UI Subsystems
     TrashGame.UI.init();
@@ -403,6 +412,7 @@ TrashGame.Main = {
     this.mobileInput.x = 0;
     this.mobileInput.y = 0;
     this.mobileInput.sprint = false;
+    this.mobileInput.clean = false;
     if (TrashGame.MobileControls) TrashGame.MobileControls.updateMode();
 
     // Hide Lobby Hangar during active matches
@@ -821,7 +831,7 @@ TrashGame.Main = {
 
     // 4. Update Modes
     if (this.currentMode === 'STORY' || this.currentMode === 'MULTIPLAYER') {
-      const cleaning = this.keys.MouseDown;
+      const cleaning = this.keys.MouseDown || this.mobileInput.clean;
       this.trashManager.update(this.player.pos, cleaning, dt, (bonus, combo, trash) => {
         if (TrashGame.OnlineRoom && TrashGame.OnlineRoom.isConnected && TrashGame.OnlineRoom.roomStarted) TrashGame.OnlineRoom.sendTrash({ ...trash, bonus });
         else TrashGame.StoryMode.onTrashCollected(bonus, combo);
@@ -883,6 +893,7 @@ TrashGame.Main = {
   playerTakeDamage(dmg) {
     if (this.player.isDead) return;
     this.player.hp = Math.max(0, this.player.hp - dmg);
+    this.flashPlayerRed();
     this.updatePlayerHpBar();
     TrashGame.AdventureMode.spawnFloatingDamage(this.player.pos, `-${dmg} HP`, this.camera, '#ef4444');
 
@@ -892,6 +903,42 @@ TrashGame.Main = {
     }
     TrashGame.Sound.playAsset('gameplay/player_hurt', 0.42);
     TrashGame.Sound.playBossHit();
+  },
+
+  flashPlayerRed() {
+    if (this.damageFlashTimer) window.clearTimeout(this.damageFlashTimer);
+    this.damagedMaterials.forEach(({ mesh, original, flash }) => {
+      if (mesh.material === flash) mesh.material = original;
+      (Array.isArray(flash) ? flash : [flash]).forEach(material => material && material.dispose && material.dispose());
+    });
+    this.damagedMaterials = [];
+    if (!this.characterGroup) return;
+
+    this.characterGroup.traverse(mesh => {
+      if (!mesh.isMesh || !mesh.material) return;
+      const original = mesh.material;
+      const makeFlash = material => {
+        const flash = material.clone();
+        if (flash.color) flash.color.lerp(new THREE.Color(0xff1825), 0.72);
+        if (flash.emissive) {
+          flash.emissive.lerp(new THREE.Color(0xff1010), 0.82);
+          flash.emissiveIntensity = Math.max(flash.emissiveIntensity || 0, 0.75);
+        }
+        return flash;
+      };
+      const flash = Array.isArray(original) ? original.map(makeFlash) : makeFlash(original);
+      mesh.material = flash;
+      this.damagedMaterials.push({ mesh, original, flash });
+    });
+
+    this.damageFlashTimer = window.setTimeout(() => {
+      this.damagedMaterials.forEach(({ mesh, original, flash }) => {
+        if (mesh.material === flash) mesh.material = original;
+        (Array.isArray(flash) ? flash : [flash]).forEach(material => material && material.dispose && material.dispose());
+      });
+      this.damagedMaterials = [];
+      this.damageFlashTimer = null;
+    }, 420);
   },
 
   updatePlayerHpBar() {
