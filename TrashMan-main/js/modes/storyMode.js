@@ -15,6 +15,7 @@ TrashGame.StoryMode = {
   pendingCapacity: 16,
   waitingForDeposit: false,
   capacityToastShown: false,
+  completed: false,
 
   start(mapId, trashManager) {
     if (TrashGame.Shop) TrashGame.Shop.autoOpenedForFullBag = false;
@@ -26,6 +27,7 @@ TrashGame.StoryMode = {
     this.pendingValue = 0;
     this.waitingForDeposit = false;
     this.capacityToastShown = false;
+    this.completed = false;
 
     const data = TrashGame.MapsData[mapId] || TrashGame.MapsData.playa;
     const difficulty = TrashGame.Difficulties[TrashGame.Main.difficulty] || TrashGame.Difficulties.medium;
@@ -45,26 +47,34 @@ TrashGame.StoryMode = {
     this.updateHUD();
   },
 
-  onTrashCollected(coinsBonus, comboCount) {
-    if (this.pendingTrash >= this.pendingCapacity || this.waitingForDeposit) return;
+  onTrashCollected(coinsBonus, comboCount, options = {}) {
+    if (!this.active || this.completed) return;
     this.trashCollected++;
-    this.pendingTrash++;
-    this.pendingValue += coinsBonus;
-    this.capacityToastShown = false;
+    const addToLocalBag = options.bagPickup !== false && this.pendingTrash < this.pendingCapacity;
+    if (addToLocalBag) {
+      this.pendingTrash++;
+      this.pendingValue += coinsBonus;
+      this.capacityToastShown = false;
+    }
 
     this.updateHUD();
 
     // Show Combo Banner
-    if (comboCount >= 2) {
+    if (addToLocalBag && comboCount >= 2) {
       TrashGame.UI.showComboBanner(`¡COMBO LIMPIEZA x${comboCount}!`);
     }
 
     // Check Level Victory
     if (this.trashCollected >= this.totalTrash) {
-      this.waitingForDeposit = this.pendingTrash > 0;
-      if (this.waitingForDeposit) {
-        TrashGame.UI.showToast('Objetivo completo. Lleva la basura a la estación de reciclaje para cobrar.', 'success');
-      } else this.victory();
+      // Sell the final backpack automatically, so finishing the last pickup always reaches victory.
+      const finalSale = this.pendingValue;
+      this.coinsGained += finalSale;
+      this.pendingTrash = 0;
+      this.pendingValue = 0;
+      this.waitingForDeposit = false;
+      if (finalSale > 0) TrashGame.State.addCoins(finalSale);
+      this.updateHUD();
+      this.victory();
     }
   },
 
@@ -138,7 +148,18 @@ TrashGame.StoryMode = {
   },
 
   victory() {
+    if (this.completed) return;
+    this.completed = true;
     this.active = false;
+    this.waitingForDeposit = false;
+    const shopModal = document.getElementById('modal-recycling-shop');
+    if (TrashGame.Shop && (TrashGame.Shop.opened || shopModal && !shopModal.classList.contains('hidden'))) TrashGame.Shop.close();
+    if (TrashGame.MobileControls) TrashGame.MobileControls.releaseAll();
+    if (TrashGame.Main) TrashGame.Main.isPaused = true;
+    ['modal-pause', 'modal-gameover'].forEach(id => {
+      const modal = document.getElementById(id);
+      if (modal) modal.classList.add('hidden');
+    });
     TrashGame.Sound.stopLoopAudio('music');
     TrashGame.Sound.playFanfare();
     TrashGame.Sound.playAsset('musica/musica_victoria', 0.35);

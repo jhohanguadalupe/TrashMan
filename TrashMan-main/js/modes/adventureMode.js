@@ -8,12 +8,14 @@ window.TrashGame = window.TrashGame || {};
 TrashGame.AdventureMode = {
   active: false,
   boss: null,
+  completed: false,
   projectiles: [],
   impactParticles: [],
   trophies: [],
 
   start(worldGroup) {
     this.active = true;
+    this.completed = false;
     this.projectiles = [];
     this.impactParticles = [];
 
@@ -197,7 +199,17 @@ TrashGame.AdventureMode = {
   },
 
   victory() {
+    if (this.completed) return;
+    this.completed = true;
     this.active = false;
+    const shopModal = document.getElementById('modal-recycling-shop');
+    if (TrashGame.Shop && (TrashGame.Shop.opened || shopModal && !shopModal.classList.contains('hidden'))) TrashGame.Shop.close();
+    if (TrashGame.MobileControls) TrashGame.MobileControls.releaseAll();
+    if (TrashGame.Main) TrashGame.Main.isPaused = true;
+    ['modal-pause', 'modal-gameover'].forEach(id => {
+      const modal = document.getElementById(id);
+      if (modal) modal.classList.add('hidden');
+    });
     TrashGame.Sound.stopLoopAudio('music');
     TrashGame.Sound.playFanfare();
     TrashGame.Sound.playAsset('jefe/boss_defeat', 0.65);

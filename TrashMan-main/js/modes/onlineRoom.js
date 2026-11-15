@@ -127,9 +127,9 @@ TrashGame.OnlineRoom = {
     } else if (message.type === 'room-lobby') {
       if (TrashGame.Main && TrashGame.Main.currentMode !== 'LOBBY') TrashGame.Main.exitToLobby();
     } else if (message.type === 'trash-collected') {
-      this.applyRemoteTrash(message.trash);
+      this.applyRemoteTrash(message.trash, message.playerId);
     } else if (message.type === 'deposit' && message.playerId !== this.playerId) {
-      this.applyRemoteDeposit(message.deposit);
+      this.applyRemoteDeposit(message.deposit, message.playerId);
     } else if (message.type === 'error') {
       this.showStatus(message.message || 'No se pudo completar la operación de la sala.', true);
       if (this._pendingCreate) {
@@ -192,13 +192,14 @@ TrashGame.OnlineRoom = {
       this.socket.send(JSON.stringify({ type: 'lobby' }));
     }
   },
-  applyRemoteDeposit(deposit) {
+  applyRemoteDeposit(deposit, playerId) {
     if (!deposit || !TrashGame.StoryMode.active) return;
-    TrashGame.StoryMode.recordDeposit();
-    TrashGame.State.addCoins(Math.max(0, Number(deposit.value) || 0));
-    if (deposit.finishMission) TrashGame.StoryMode.victory();
+    const player = this.players.get(playerId);
+    if (TrashGame.MultiplayerMode) {
+      TrashGame.MultiplayerMode.showChatToast(`${player && player.name || 'Un compañero'} vendió ${Math.max(0, Number(deposit.count) || 0)} residuos.`);
+    }
   },
-  applyRemoteTrash(trash) {
+  applyRemoteTrash(trash, playerId) {
     if (!trash || !TrashGame.StoryMode.active || !TrashGame.Main.trashManager) return;
     const key = `${Math.round(trash.x * 10)}:${Math.round(trash.z * 10)}:${trash.kind}`;
     if (this.collectedTrash.has(key)) return;
@@ -214,7 +215,7 @@ TrashGame.OnlineRoom = {
       closest.collected = true;
       TrashGame.Main.trashManager.worldGroup.remove(closest.mesh);
     }
-    TrashGame.StoryMode.onTrashCollected(trash.bonus || 15, 1);
+    TrashGame.StoryMode.onTrashCollected(trash.bonus || 15, 1, { bagPickup: playerId === this.playerId });
   },
   inviteLink() {
     return `${location.href.split('#')[0]}#room=${encodeURIComponent(this.roomCode)}`;

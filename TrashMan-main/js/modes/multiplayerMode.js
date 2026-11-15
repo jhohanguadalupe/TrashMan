@@ -151,7 +151,7 @@ TrashGame.MultiplayerMode = {
     if (!feed) return;
     const pill = document.createElement('div');
     pill.className = "px-3 py-1.5 rounded-xl glass-panel text-[11px] font-bold text-cyan-300 border border-cyan-500/40 shadow-lg animate-fade-in";
-    pill.innerHTML = `<span>💬</span> ${msg}`;
+    pill.textContent = `💬 ${msg}`;
     feed.appendChild(pill);
     setTimeout(() => pill.remove(), 4000);
   },
@@ -162,5 +162,6 @@ TrashGame.MultiplayerMode = {
     this.teammates = [];
     this.remotePlayers.forEach(group => worldGroup.remove(group));
     this.remotePlayers.clear();
+    this.remoteTargetState.clear();
   }
 };

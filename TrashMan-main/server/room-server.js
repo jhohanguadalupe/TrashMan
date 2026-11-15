@@ -92,7 +92,7 @@ wss.on('connection', socket => {
       const key = `${Math.round(cleanTrash.x * 10)}:${Math.round(cleanTrash.z * 10)}:${cleanTrash.kind}`;
       if (room.collected.has(key)) return;
       room.collected.add(key);
-      relay(null, { type: 'trash-collected', trash: cleanTrash });
+      relay(null, { type: 'trash-collected', playerId: player.id, trash: cleanTrash });
     } else if (message.type === 'deposit' && room.session) {
       const deposit = message.deposit || {};
       relay(socket, { type: 'deposit', playerId: player.id, deposit: { count: Math.max(0, Math.min(1000, Number(deposit.count) || 0)), value: Math.max(0, Math.min(100000, Number(deposit.value) || 0)), finishMission: !!deposit.finishMission } });
