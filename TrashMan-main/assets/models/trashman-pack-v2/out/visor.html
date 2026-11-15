@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Trash Man - Visor de modelos 3D</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="models.js"></script>
+<script src="tm_loader.js"></script>
+<style>
+  html,body{height:100%;margin:0;background:#1b2a2f}
+  canvas{display:block;touch-action:none;cursor:grab}
+  canvas:active{cursor:grabbing}
+</style>
+</head>
+<body class="text-slate-100 font-sans">
+<div id="ui" class="fixed top-3 left-3 z-10 bg-slate-900/80 backdrop-blur rounded-xl p-3 space-y-2 text-sm w-60">
+  <div class="font-bold text-emerald-400">TRASH MAN · Modelos 3D</div>
+  <select id="sel" class="w-full bg-slate-800 rounded p-1"></select>
+  <label class="flex items-center gap-2"><input id="run" type="checkbox"> Correr</label>
+  <label class="flex items-center gap-2"><input id="fire" type="checkbox"> Cañones a tope</label>
+  <label class="flex items-center gap-2"><input id="spin" type="checkbox" checked> Girar solo</label>
+  <label class="flex items-center gap-2"><input id="wire" type="checkbox"> Alambre</label>
+  <div id="info" class="text-slate-400"></div>
+  <div class="text-slate-500 text-xs">Arrastra para rotar · rueda para zoom</div>
+</div>
+<script>
+const sel=document.getElementById('sel'), info=document.getElementById('info');
+TM.names().forEach(n=>{const o=document.createElement('option');o.value=n;o.textContent=n.replace(/_/g,' ');sel.appendChild(o);});
+
+const scene=new THREE.Scene();
+scene.background=new THREE.Color(0x1b2a2f);
+const cam=new THREE.PerspectiveCamera(40,innerWidth/innerHeight,0.05,100);
+const renderer=new THREE.WebGLRenderer({antialias:true});
+renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+renderer.setSize(innerWidth,innerHeight);
+document.body.appendChild(renderer.domElement);
+
+scene.add(new THREE.HemisphereLight(0xcfe8ff,0x3a3a30,0.9));
+const sun=new THREE.DirectionalLight(0xffffff,0.8); sun.position.set(3,5,4); scene.add(sun);
+const rim=new THREE.DirectionalLight(0x66ffcc,0.3); rim.position.set(-4,2,-3); scene.add(rim);
+const floor=new THREE.Mesh(new THREE.CircleGeometry(1.6,40),new THREE.MeshLambertMaterial({color:0x2c3f3a}));
+floor.rotation.x=-Math.PI/2; scene.add(floor);
+
+let model=null, yaw=0.5, pitch=0.15, dist=4.2, target=new THREE.Vector3(0,0.9,0.3);
+function load(name){
+  if(model) scene.remove(model);
+  model=TM.build(THREE,name);
+  scene.add(model);
+  const box=new THREE.Box3().setFromObject(model), size=box.getSize(new THREE.Vector3()), c=box.getCenter(new THREE.Vector3());
+  target.copy(c); dist=Math.max(size.x,size.y,size.z)*2.4;
+  floor.scale.setScalar(Math.max(1,Math.max(size.x,size.z)/2.4));
+  info.textContent=TM.triCount(name)+' triángulos · '+Object.keys(model.userData.parts).length+' partes';
+  setWire();
+}
+function setWire(){const w=document.getElementById('wire').checked;
+  model&&model.traverse(o=>{if(o.isMesh)o.material.wireframe=w;});}
+sel.onchange=()=>load(sel.value);
+document.getElementById('wire').onchange=setWire;
+
+let drag=false,lx=0,ly=0;
+const cv=renderer.domElement;
+cv.addEventListener('pointerdown',e=>{drag=true;lx=e.clientX;ly=e.clientY;document.getElementById('spin').checked=false;});
+addEventListener('pointerup',()=>drag=false);
+addEventListener('pointermove',e=>{if(!drag)return;yaw-=(e.clientX-lx)*0.01;pitch=Math.max(-1.2,Math.min(1.2,pitch+(e.clientY-ly)*0.008));lx=e.clientX;ly=e.clientY;});
+cv.addEventListener('wheel',e=>{e.preventDefault();dist*=1+Math.sign(e.deltaY)*0.08;},{passive:false});
+addEventListener('resize',()=>{cam.aspect=innerWidth/innerHeight;cam.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);});
+
+const clock=new THREE.Clock();
+(function loop(){
+  requestAnimationFrame(loop);
+  const t=clock.getElapsedTime();
+  if(document.getElementById('spin').checked) yaw+=0.008;
+  cam.position.set(target.x+Math.sin(yaw)*Math.cos(pitch)*dist, target.y+Math.sin(pitch)*dist, target.z+Math.cos(yaw)*Math.cos(pitch)*dist);
+  cam.lookAt(target);
+  if(model) TM.animate(model,t,{run:document.getElementById('run').checked,fire:document.getElementById('fire').checked});
+  renderer.render(scene,cam);
+})();
+load(sel.value);
+</script>
+</body>
+</html>

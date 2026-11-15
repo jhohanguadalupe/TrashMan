@@ -1,0 +1,2009 @@
+<!DOCTYPE html>
+<html lang="es" class="h-full bg-slate-950 text-slate-100 select-none overflow-hidden">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Trash Man - 3D Eco Arcade | Arquitectura Modular</title>
+  
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            eco: {
+              300: '#86efac',
+              400: '#4ade80',
+              500: '#22c55e',
+              600: '#16a34a',
+              700: '#15803d',
+              glow: '#00ff88',
+            },
+            cyber: {
+              blue: '#06b6d4',
+              purple: '#a855f7',
+              amber: '#f59e0b',
+            }
+          },
+          fontFamily: {
+            game: ['Outfit', 'system-ui', 'sans-serif'],
+            display: ['Fredoka', 'cursive', 'sans-serif'],
+          },
+          animation: {
+            'float-slow': 'floating 4s ease-in-out infinite',
+            'pulse-glow': 'pulseGlow 2.5s infinite',
+            'spin-slow': 'spin 12s linear infinite',
+            'bounce-subtle': 'bounceSubtle 2s ease-in-out infinite',
+          },
+          keyframes: {
+            floating: {
+              '0%, 100%': { transform: 'translateY(0px)' },
+              '50%': { transform: 'translateY(-8px)' },
+            },
+            pulseGlow: {
+              '0%, 100%': { opacity: '0.4', filter: 'drop-shadow(0 0 15px rgba(34, 197, 94, 0.4))' },
+              '50%': { opacity: '0.9', filter: 'drop-shadow(0 0 25px rgba(34, 197, 94, 0.8))' },
+            },
+            bounceSubtle: {
+              '0%, 100%': { transform: 'translateY(0)' },
+              '50%': { transform: 'translateY(-4px)' },
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- External Stylesheet -->
+  <link rel="stylesheet" href="css/styles.css">
+
+  <!-- Google Fonts: Orbitron & Rajdhani for Tactical Sci-Fi UI -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Rajdhani:wght@600;700&display=swap" rel="stylesheet">
+
+  <!-- Three.js CDN -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
+  <!-- Three.js Official GLTF/GLB 3D Model Loader -->
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/DRACOLoader.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/utils/SkeletonUtils.js"></script>
+  <!-- Custom Trash Man character, monster and prop models supplied by the user -->
+  <script defer src="assets/models/trashman-pack-v3/out/game_data.js"></script>
+  <script defer src="assets/models/trashman-pack-v3/out/models.js"></script>
+  <script defer src="assets/models/trashman-pack-v3/out/tm_loader.js"></script>
+
+  <!-- Three.js Post-Processing Shaders & Passes for Photorealistic Bloom -->
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/shaders/CopyShader.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/shaders/LuminosityHighPassShader.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/EffectComposer.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/RenderPass.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/ShaderPass.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/UnrealBloomPass.js"></script>
+
+  <!-- Canvas Confetti CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+</head>
+
+<body class="h-full w-full relative">
+
+  <!-- ========================================== -->
+  <!-- SPLASH / LOADING SCREEN                    -->
+  <!-- ========================================== -->
+  <div id="splash-screen" style="
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    background: #000;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+  ">
+    <!-- Background image fills entire screen -->
+    <img
+      src="assets/splash.jpg"
+      alt="TrashMan – Vengadores del Reciclaje"
+      style="
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        object-position: center top;
+        filter: brightness(0.88);
+      "
+    />
+
+    <!-- Dark gradient overlay so the bar is readable -->
+    <div style="
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(to top, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.0) 50%);
+    "></div>
+
+    <!-- Loading bar + text at the bottom -->
+    <div style="
+      position: absolute;
+      bottom: 48px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: min(560px, 85vw);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 14px;
+    ">
+      <!-- Label -->
+      <p id="splash-label" style="
+        margin: 0;
+        color: #a3e635;
+        font-family: 'Orbitron', 'Segoe UI', sans-serif;
+        font-size: clamp(11px, 2vw, 14px);
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+        text-shadow: 0 0 12px rgba(163,230,53,0.8);
+      ">Iniciando mundo&hellip;</p>
+
+      <!-- Bar track -->
+      <div style="
+        width: 100%;
+        height: 10px;
+        background: rgba(255,255,255,0.12);
+        border-radius: 999px;
+        overflow: hidden;
+        box-shadow: 0 0 0 1.5px rgba(163,230,53,0.35);
+      ">
+        <!-- Animated fill -->
+        <div id="splash-bar" style="
+          height: 100%;
+          width: 0%;
+          border-radius: 999px;
+          background: linear-gradient(90deg, #16a34a, #a3e635, #22d3ee);
+          box-shadow: 0 0 14px rgba(163,230,53,0.7);
+          transition: width 0.18s ease;
+        "></div>
+      </div>
+
+      <!-- Percentage -->
+      <span id="splash-pct" style="
+        color: rgba(255,255,255,0.65);
+        font-family: 'Rajdhani', 'Segoe UI', sans-serif;
+        font-size: clamp(12px, 2vw, 15px);
+        letter-spacing: 0.08em;
+      ">0 %</span>
+    </div>
+  </div>
+
+  <!-- ✦ LOBBY BACKGROUND IMAGE — Full-screen art, behind everything -->
+  <div id="lobby-bg-image" style="
+    position: fixed;
+    inset: 0;
+    z-index: 5;
+    background: url('assets/lobby_bg.jpg') center center / cover no-repeat;
+    transition: opacity 0.6s ease;
+    pointer-events: none;
+  ">
+    <!-- Top vignette for header readability -->
+    <div style="position:absolute;inset:0;background:linear-gradient(to bottom, rgba(2,6,23,0.45) 0%, rgba(2,6,23,0.0) 25%, rgba(2,6,23,0.0) 60%, rgba(2,6,23,0.5) 100%);"></div>
+    <!-- Left vignette for panel contrast -->
+    <div style="position:absolute;inset:0;background:linear-gradient(to right, rgba(2,6,23,0.3) 0%, transparent 35%);"></div>
+  </div>
+
+  <!-- 3D WebGL Canvas Container — always visible, transparent bg shows character over lobby image -->
+  <div id="three-container" class="absolute inset-0 cursor-grab active:cursor-grabbing w-full h-full" style="z-index:10; transition: opacity 0.6s ease;"></div>
+
+  <!-- ========================================== -->
+  <!-- LOBBY UI OVERLAY                           -->
+  <!-- ========================================== -->
+  <div id="lobby-ui" class="absolute inset-0 pointer-events-none transition-opacity duration-500" style="z-index:20;">
+
+    <!-- (bg image moved to its own layer above) -->
+    <!-- Top Bar — Battle Royale Tactical Gamer Header -->
+    <header class="absolute top-0 left-0 right-0 px-4 md:px-8 py-3.5 flex items-center justify-between">
+      
+      <!-- Game Logo -->
+      <div class="flex items-center gap-3 pointer-events-auto">
+        <div class="w-12 h-12 rounded-2xl bg-gradient-to-tr from-emerald-500 via-eco-400 to-cyan-400 p-0.5 shadow-lg shadow-emerald-500/40 flex items-center justify-center">
+          <div class="w-full h-full bg-slate-950/90 rounded-[14px] flex items-center justify-center">
+            <svg class="w-7 h-7 text-emerald-400 animate-pulse" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M7 19H4.815a1.83 1.83 0 0 1-1.57-.881 1.785 1.785 0 0 1-.004-1.784L7.196 9.5"/>
+              <path d="M11 19h8.203a1.83 1.83 0 0 0 1.556-.89 1.784 1.784 0 0 0 0-1.775l-1.226-2.12"/>
+              <path d="m14 16-3 3 3 3"/>
+              <path d="M8.293 13.596 6.8 11.002a1.83 1.83 0 0 1 .006-1.779A1.785 1.785 0 0 1 8.38 8.334L12 8.334"/>
+              <path d="m10 11-2-2.5L10 6"/>
+              <path d="m15.5 12 3.197-5.539a1.83 1.83 0 0 0-.004-1.784A1.785 1.785 0 0 0 17.123 3.8H10"/>
+              <path d="m16 6 2.5 2.5L21 6"/>
+            </svg>
+          </div>
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <h1 class="font-tech text-2xl md:text-3xl font-black tracking-wider bg-gradient-to-r from-emerald-400 via-teal-300 to-cyan-400 bg-clip-text text-transparent drop-shadow-[0_0_15px_rgba(52,211,153,0.4)]">
+              TRASH MAN
+            </h1>
+            <span class="text-[10px] font-black px-2.5 py-0.5 bg-gradient-to-r from-emerald-500/30 to-cyan-500/30 text-emerald-300 border border-emerald-400/50 rounded-full tracking-widest uppercase shadow-sm shadow-emerald-500/20">
+              TEMPORADA 1
+            </span>
+          </div>
+          <p class="text-xs text-slate-400 font-medium hidden sm:block tracking-wide">Vengadores del Reciclaje • Batalla Global</p>
+        </div>
+      </div>
+
+      <!-- Player Battle Card (Free Fire Style Rank & Level) -->
+      <div class="hidden lg:flex items-center gap-3.5 pointer-events-auto px-4 py-2 rounded-2xl glass-panel border border-cyan-500/30 shadow-lg shadow-cyan-950/30">
+        <div class="relative">
+          <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-400 via-amber-500 to-orange-600 flex items-center justify-center font-black text-slate-950 text-sm shadow-md shadow-amber-500/40">
+            <span id="top-level-display">14</span>
+          </div>
+          <span class="absolute -bottom-1 -right-1 text-xs">⭐</span>
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <span id="top-player-name" class="font-black text-sm text-slate-100 tracking-wide font-hud">EcoGuardián</span>
+            <span id="top-player-title" class="text-[10px] font-black uppercase tracking-wider text-amber-300 bg-amber-950/80 px-2 py-0.5 rounded-md border border-amber-500/40">
+              DIAMANTE I
+            </span>
+          </div>
+          <div class="w-40 h-2 bg-slate-900 rounded-full mt-1.5 overflow-hidden border border-slate-700/60 p-0.5">
+            <div id="top-xp-bar" class="h-full bg-gradient-to-r from-emerald-400 via-teal-400 to-cyan-400 rounded-full w-[78%] transition-all duration-500 shadow-[0_0_8px_#34d399]"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Currency, Free Fire Diamond Store & Audio Controls -->
+      <div class="flex items-center gap-2.5 pointer-events-auto">
+        <!-- Coins -->
+        <div class="flex items-center gap-2 px-3.5 py-1.5 rounded-2xl glass-panel border border-amber-500/40 hover:border-amber-400 transition-all shadow-lg shadow-amber-950/30">
+          <div class="w-7 h-7 rounded-full bg-gradient-to-tr from-amber-500 to-yellow-300 flex items-center justify-center shadow-md shadow-amber-500/50 text-sm animate-bounce-subtle">
+            🪙
+          </div>
+          <div class="flex flex-col">
+            <span class="text-[9px] uppercase font-black tracking-widest text-amber-300/80">Monedas</span>
+            <span id="coin-counter" class="font-hud text-base md:text-lg font-black text-amber-300 leading-none">
+              10,191
+            </span>
+          </div>
+          <button onclick="TrashGame.UI.openModal('modal-ruleta')" title="Girar Ruleta" class="ml-1 w-6 h-6 rounded-lg bg-amber-500/25 hover:bg-amber-500/50 text-amber-300 flex items-center justify-center font-black text-sm transition-all hover:scale-110">
+            +
+          </button>
+        </div>
+
+        <!-- Audio -->
+        <button onclick="TrashGame.Sound.toggleMute()" class="w-10 h-10 rounded-2xl glass-panel border border-slate-700/70 hover:border-emerald-400 flex items-center justify-center text-slate-300 hover:text-emerald-400 transition-all hover:scale-105" title="Activar/Silenciar Sonido">
+          <span id="audio-icon-display" class="text-lg">🔊</span>
+        </button>
+
+        <!-- Info -->
+        <button onclick="TrashGame.UI.showToast('Trash Man: Personaliza tu Eco-Guardián, usa emotes y vence a los titanes.', 'info')" class="w-10 h-10 rounded-2xl glass-panel border border-slate-700/70 hover:border-cyan-400 flex items-center justify-center text-slate-300 hover:text-cyan-400 transition-all hover:scale-105" title="Información">
+          <span class="text-base">ℹ️</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- Left Navigation Panel — Stylized Free Fire Hero Menu -->
+    <aside class="absolute left-4 md:left-8 top-20 md:top-24 flex flex-col gap-2.5 pointer-events-auto">
+      <div class="text-[10px] font-black tracking-[0.2em] uppercase text-emerald-400/90 px-2 flex items-center gap-2">
+        <span class="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
+        <span>HÉROE & EQUIPAMIENTO</span>
+      </div>
+
+      <!-- Perfil -->
+      <button onclick="TrashGame.UI.openModal('modal-perfil')" class="ff-card flex items-center gap-3 px-3.5 py-2.5 rounded-2xl group w-48 md:w-56 text-left border-cyan-500/40 hover:border-cyan-400">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-cyan-600 via-blue-500 to-indigo-600 flex items-center justify-center text-white shadow-md shadow-cyan-500/30 group-hover:scale-110 transition-transform text-lg">
+          👤
+        </div>
+        <div class="flex-1 min-w-0">
+          <div class="text-xs font-black text-slate-100 group-hover:text-cyan-300 transition-colors flex items-center justify-between tracking-wide font-hud">
+            PERFIL <span class="text-[9px] font-black text-cyan-300 bg-cyan-950/90 px-1.5 py-0.5 rounded border border-cyan-500/40">LVL. 14</span>
+          </div>
+          <div class="text-[11px] text-slate-400 truncate">Estadísticas & Rango</div>
+        </div>
+      </button>
+
+      <!-- Inventario / Armería -->
+      <button onclick="TrashGame.UI.openModal('modal-inventario')" class="ff-card flex items-center gap-3 px-3.5 py-2.5 rounded-2xl group w-48 md:w-56 text-left border-amber-500/40 hover:border-amber-400">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-amber-600 via-orange-500 to-yellow-500 flex items-center justify-center text-white shadow-md shadow-amber-500/30 group-hover:scale-110 transition-transform text-lg">
+          🎒
+        </div>
+        <div class="flex-1 min-w-0">
+          <div class="text-xs font-black text-slate-100 group-hover:text-amber-300 transition-colors flex items-center justify-between tracking-wide font-hud">
+            INVENTARIO <span class="w-2 h-2 rounded-full bg-amber-400 animate-ping"></span>
+          </div>
+          <div class="text-[11px] text-slate-400 truncate">Skins, Trajes & Armas</div>
+        </div>
+      </button>
+
+      <!-- Ruleta Eco -->
+      <button onclick="TrashGame.UI.openModal('modal-ruleta')" class="ff-card flex items-center gap-3 px-3.5 py-2.5 rounded-2xl group w-48 md:w-56 text-left border-emerald-500/50 hover:border-emerald-400">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-emerald-500 via-teal-400 to-cyan-400 flex items-center justify-center text-slate-950 font-black shadow-md shadow-emerald-500/40 group-hover:rotate-45 transition-transform duration-300 text-lg">
+          🎲
+        </div>
+        <div class="flex-1 min-w-0">
+          <div class="text-xs font-black text-slate-100 group-hover:text-emerald-300 transition-colors flex items-center justify-between tracking-wide font-hud">
+            RULETA ROYALE <span class="text-[8px] font-black uppercase px-1.5 py-0.5 rounded bg-emerald-500/40 text-emerald-200 border border-emerald-400/40 animate-pulse">¡FREE!</span>
+          </div>
+          <div class="text-[11px] text-slate-400 truncate">Gira & Gana Premios</div>
+        </div>
+      </button>
+
+      <!-- Mascotas 3D -->
+      <button onclick="TrashGame.UI.openModal('modal-mascota')" class="ff-card flex items-center gap-3 px-3.5 py-2.5 rounded-2xl group w-48 md:w-56 text-left border-purple-500/40 hover:border-purple-400">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-purple-600 via-fuchsia-500 to-pink-500 flex items-center justify-center text-white shadow-md shadow-purple-500/30 group-hover:scale-110 transition-transform text-lg">
+          🐾
+        </div>
+        <div class="flex-1 min-w-0">
+          <div class="text-xs font-black text-slate-100 group-hover:text-purple-300 transition-colors flex items-center justify-between tracking-wide font-hud">
+            MASCOTAS <span class="text-[9px] font-black text-purple-300 bg-purple-950/80 px-1.5 py-0.5 rounded border border-purple-500/30">ACTIVO</span>
+          </div>
+          <div class="text-[11px] text-slate-400 truncate">Compañero Eco-Bot</div>
+        </div>
+      </button>
+
+      <!-- Personajes -->
+      <button onclick="TrashGame.UI.openModal('modal-personajes')" class="ff-card flex items-center gap-3 px-3.5 py-2.5 rounded-2xl group w-48 md:w-56 text-left border-teal-500/40 hover:border-teal-400">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-teal-600 via-emerald-500 to-cyan-500 flex items-center justify-center text-white shadow-md shadow-teal-500/30 group-hover:scale-110 transition-transform text-lg">
+          🦸
+        </div>
+        <div class="flex-1 min-w-0">
+          <div class="text-xs font-black text-slate-100 group-hover:text-teal-300 transition-colors tracking-wide font-hud">
+            HÉROES ECO
+          </div>
+          <div class="text-[11px] text-slate-400 truncate">Abraham / Sasha</div>
+        </div>
+      </button>
+    </aside>
+
+    <!-- Right Navigation Panel — Stylized Free Fire Game Modes -->
+    <aside class="absolute right-4 md:right-8 top-20 md:top-24 flex flex-col gap-2.5 pointer-events-auto">
+      <div class="text-[10px] font-black tracking-[0.2em] uppercase text-cyan-400/90 px-2 text-right flex items-center justify-end gap-2">
+        <span>MODOS DE BATALLA</span>
+        <span class="w-2 h-2 rounded-full bg-cyan-400 animate-ping"></span>
+      </div>
+
+      <!-- Modo Historia -->
+      <button onclick="TrashGame.UI.openModal('modal-historia')" class="ff-card ff-mode-story group w-56 md:w-64 p-3 rounded-2xl text-left">
+        <div class="flex items-center justify-between mb-1">
+          <span class="text-[10px] uppercase font-black tracking-widest text-emerald-400 flex items-center gap-1.5 font-hud">
+            <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span> MODO CAMPAÑA
+          </span>
+          <span class="text-[9px] bg-emerald-950/90 text-emerald-300 border border-emerald-400/40 px-2 py-0.5 rounded-full font-black">
+            4 MAPAS 3D
+          </span>
+        </div>
+        <div class="font-tech text-base md:text-lg font-black text-slate-100 group-hover:text-emerald-300 transition-colors flex items-center justify-between">
+          <span>LIMPIEZA 3D</span>
+          <span class="text-xs text-emerald-400 group-hover:translate-x-1 transition-transform">▶</span>
+        </div>
+        <p class="text-[11px] text-slate-400 mt-1 line-clamp-2">
+          Playa, Bosque, Río y Ciudad con fauna viva, autos y ciclo de reciclaje.
+        </p>
+      </button>
+
+      <!-- Modo Aventura / Boss Fight -->
+      <button onclick="TrashGame.UI.openModal('modal-aventura')" class="ff-card ff-mode-boss group w-56 md:w-64 p-3 rounded-2xl text-left">
+        <div class="flex items-center justify-between mb-1">
+          <span class="text-[10px] uppercase font-black tracking-widest text-purple-400 flex items-center gap-1.5 font-hud">
+            <span class="w-1.5 h-1.5 rounded-full bg-purple-400 animate-pulse"></span> BOSS FIGHT RAID
+          </span>
+          <span class="text-[9px] bg-purple-950/90 text-purple-300 border border-purple-400/40 px-2 py-0.5 rounded-full font-black">
+            VS TITÁN
+          </span>
+        </div>
+        <div class="font-tech text-base md:text-lg font-black text-slate-100 group-hover:text-purple-300 transition-colors flex items-center justify-between">
+          <span>COMBATE TITÁN</span>
+          <span class="text-xs text-purple-400 group-hover:translate-x-1 transition-transform">▶</span>
+        </div>
+        <p class="text-[11px] text-slate-400 mt-1 line-clamp-2">
+          Enfréntate al Gólem gigante en la arena con armas y esquivando terremotos.
+        </p>
+      </button>
+
+      <!-- Modo Multijugador -->
+      <button onclick="TrashGame.UI.openModal('modal-multijugador')" class="ff-card ff-mode-multi group w-56 md:w-64 p-3 rounded-2xl text-left">
+        <div class="flex items-center justify-between mb-1">
+          <span class="text-[10px] uppercase font-black tracking-widest text-cyan-400 flex items-center gap-1.5 font-hud">
+            <span class="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse"></span> MULTIJUGADOR
+          </span>
+          <span class="text-[9px] bg-cyan-950/90 text-cyan-300 border border-cyan-400/40 px-2 py-0.5 rounded-full font-black">
+            SALA 16P
+          </span>
+        </div>
+        <div class="font-tech text-base md:text-lg font-black text-slate-100 group-hover:text-cyan-300 transition-colors flex items-center justify-between">
+          <span>SALAS CO-OP</span>
+          <span class="text-xs text-cyan-400 group-hover:translate-x-1 transition-transform">▶</span>
+        </div>
+        <p class="text-[11px] text-slate-400 mt-1 line-clamp-2">
+          Salas por código para limpiar y combatir en equipo en tiempo real.
+        </p>
+      </button>
+    </aside>
+
+    <!-- Center Bottom — FREE FIRE EMOTES QUICK DOCK -->
+    <div class="absolute bottom-5 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2.5 z-20 pointer-events-auto">
+      
+      <!-- Emotes Bar -->
+      <div class="ff-emote-dock px-3.5 py-2 rounded-2xl flex items-center gap-2 max-w-[95vw] overflow-x-auto">
+        <!-- Main Free Fire Emotes Trigger Button -->
+        <button onclick="TrashGame.UI.openModal('modal-emotes')" class="ff-wheel-trigger px-3 py-1.5 rounded-xl font-hud font-black text-xs text-slate-950 flex items-center gap-1.5 shadow-lg tracking-wider" title="Abrir Menú de Emotes">
+          <span class="text-base">🎭</span>
+          <span class="hidden sm:inline">EMOTES</span>
+        </button>
+
+        <div class="w-[1px] h-6 bg-slate-700/60 mx-1"></div>
+
+        <!-- Quick Emotes Actions -->
+        <button onclick="TrashGame.Emotes.trigger('dance')" class="ff-emote-btn px-2.5 py-1.5 rounded-xl text-xs font-hud font-bold text-slate-200 hover:text-emerald-400 flex items-center gap-1" title="Danza Free Fire">
+          <span>💃</span>
+          <span class="hidden md:inline">Danza</span>
+        </button>
+
+        <button onclick="TrashGame.Emotes.trigger('kungfu')" class="ff-emote-btn px-2.5 py-1.5 rounded-xl text-xs font-hud font-bold text-slate-200 hover:text-amber-400 flex items-center gap-1" title="Patada Dragón">
+          <span>🥋</span>
+          <span class="hidden md:inline">Patada</span>
+        </button>
+
+        <button onclick="TrashGame.Emotes.trigger('flex')" class="ff-emote-btn px-2.5 py-1.5 rounded-xl text-xs font-hud font-bold text-slate-200 hover:text-cyan-400 flex items-center gap-1" title="Poder de Titán">
+          <span>💪</span>
+          <span class="hidden md:inline">Fuerza</span>
+        </button>
+
+        <button onclick="TrashGame.Emotes.trigger('salute')" class="ff-emote-btn px-2.5 py-1.5 rounded-xl text-xs font-hud font-bold text-slate-200 hover:text-blue-400 flex items-center gap-1" title="Saludo Militar">
+          <span>🫡</span>
+          <span class="hidden md:inline">Saludo</span>
+        </button>
+
+        <button onclick="TrashGame.Emotes.trigger('laugh')" class="ff-emote-btn px-2.5 py-1.5 rounded-xl text-xs font-hud font-bold text-slate-200 hover:text-yellow-400 flex items-center gap-1" title="Risa Burlona">
+          <span>🤣</span>
+          <span class="hidden md:inline">Risa</span>
+        </button>
+
+        <button onclick="TrashGame.Emotes.trigger('legendary')" class="ff-emote-btn px-2.5 py-1.5 rounded-xl text-xs font-hud font-bold text-amber-300 hover:text-amber-200 border-amber-500/40 flex items-center gap-1" title="Aura de Superhéroe">
+          <span>⚡</span>
+          <span class="hidden md:inline">Aura</span>
+        </button>
+
+        <button onclick="TrashGame.Emotes.stop(); TrashGame.UI.showToast('Emote detenido', 'info')" class="px-2 py-1.5 rounded-xl bg-red-950/60 hover:bg-red-900/80 text-red-400 text-xs font-hud font-bold flex items-center gap-1 border border-red-700/50" title="Detener Emote">
+          <span>⏹️</span>
+        </button>
+
+        <div class="w-[1px] h-6 bg-slate-700/60 mx-1"></div>
+
+        <!-- Camera Center -->
+        <button onclick="TrashGame.Main.lobby.targetRotY = 0; TrashGame.Sound.playClick(); TrashGame.UI.showToast('Cámara centrada', 'info')" class="px-2.5 py-1.5 rounded-xl bg-slate-800/80 hover:bg-slate-700 text-cyan-300 text-xs font-hud font-bold flex items-center gap-1 border border-cyan-500/30" title="Centrar Vista 360°">
+          <span>🔄</span>
+          <span class="hidden lg:inline">Centrar</span>
+        </button>
+      </div>
+
+      <!-- 360 Rotation Tactical Banner -->
+      <div class="px-3.5 py-1 rounded-full bg-slate-950/80 backdrop-blur-md text-[10px] font-hud font-bold tracking-widest text-slate-400 flex items-center gap-2 border border-slate-800/80 shadow-md">
+        <span class="text-emerald-400">❖</span>
+        <span>ARRASTRA CON EL RATÓN PARA GIRAR 360° • SELECCIONA UN MODO O EMOTE</span>
+        <span class="text-emerald-400">❖</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================== -->
+  <!-- IN-GAME HUD OVERLAY (STORY / BOSS / CO-OP) -->
+  <!-- ========================================== -->
+  <div id="game-hud" class="absolute inset-0 z-30 pointer-events-none hidden transition-opacity duration-300">
+    
+    <!-- Top HUD Bar -->
+    <div class="absolute top-4 left-4 right-4 flex items-center justify-between">
+      
+      <!-- Player HP Bar -->
+      <div class="flex items-center gap-3 glass-panel px-4 py-2.5 rounded-2xl border border-white/10 pointer-events-auto">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-emerald-500 to-teal-400 flex items-center justify-center text-xl shadow-md">
+          <span id="hud-player-avatar">🦸‍♂️</span>
+        </div>
+        <div class="flex flex-col gap-1">
+          <div class="flex items-center gap-2">
+            <span class="text-[10px] font-bold text-red-400 uppercase w-6">HP</span>
+            <div class="w-32 md:w-44 h-3 bg-slate-900 rounded-full overflow-hidden border border-red-500/30">
+              <div id="hud-hp-bar" class="h-full bg-gradient-to-r from-red-600 to-rose-400 transition-all duration-200" style="width: 100%;"></div>
+            </div>
+            <span id="hud-hp-text" class="text-[10px] font-bold text-red-300">100/100</span>
+          </div>
+          <div class="flex items-center gap-2">
+            <span class="text-[10px] font-bold text-cyan-400 uppercase w-6">BIO</span>
+            <div class="w-32 md:w-44 h-2 bg-slate-900 rounded-full overflow-hidden border border-cyan-500/30">
+              <div class="h-full bg-gradient-to-r from-cyan-500 to-blue-400" style="width: 100%;"></div>
+            </div>
+            <span class="text-[9px] font-bold text-cyan-300">100%</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Center: Objectives or Boss HP -->
+      <div id="hud-objective-panel" class="glass-panel px-5 py-2.5 rounded-2xl border border-white/10 flex flex-col items-center">
+        <div class="flex items-center gap-2">
+          <span id="hud-map-icon" class="text-xl">🏖️</span>
+          <span id="hud-map-title" class="font-display text-base font-bold text-white">Playa Cristalina</span>
+          <span id="hud-badge-mode" class="text-[9px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 uppercase">Limpieza</span>
+        </div>
+        
+        <!-- Story Mode Trash Progress -->
+        <div id="hud-trash-progress-container" class="mt-1 flex items-center gap-3">
+          <div class="w-48 h-3 bg-slate-900 rounded-full overflow-hidden border border-emerald-500/40">
+            <div id="hud-trash-bar" class="h-full bg-gradient-to-r from-emerald-500 via-teal-400 to-cyan-300 transition-all duration-300" style="width: 0%;"></div>
+          </div>
+          <span id="hud-trash-counter" class="font-display text-sm font-bold text-emerald-300">0 / 25 Limpio</span>
+        </div>
+        <div id="hud-carry-status" class="hidden text-[9px] font-bold text-amber-200/90 mt-1">🎒 Mochila: 0/16 · Deposita en la estación ♻️</div>
+
+        <!-- Boss Mode HP Bar -->
+        <div id="hud-boss-hp-container" class="mt-1 hidden flex-col items-center">
+          <div class="w-64 md:w-80 h-3.5 bg-slate-950 rounded-full overflow-hidden border-2 border-purple-500 shadow-lg shadow-purple-500/30">
+            <div id="hud-boss-bar" class="h-full bg-gradient-to-r from-purple-600 via-pink-500 to-amber-400 transition-all duration-200" style="width: 100%;"></div>
+          </div>
+          <div class="flex items-center justify-between w-full text-[10px] font-bold text-purple-300 mt-0.5">
+            <span>Gólem de Neumáticos</span>
+            <span id="hud-boss-hp-text">2,500 / 2,500 HP</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right: Radar Compass, Coins & Pause Button -->
+      <div class="flex items-center gap-3 pointer-events-auto">
+        <!-- Radar Compass -->
+        <div class="glass-panel px-3 py-1.5 rounded-2xl flex items-center gap-2 border border-slate-700/60" title="Brújula: Dirección al residuo más cercano">
+          <span id="radar-arrow-icon" class="radar-arrow inline-block text-emerald-400 font-black text-sm">⬆️</span>
+          <span id="radar-distance-text" class="text-xs font-bold text-slate-300">--m</span>
+        </div>
+
+        <!-- Coins Gained -->
+        <div class="glass-panel px-3.5 py-2 rounded-2xl flex items-center gap-2 border border-amber-500/30">
+          <span class="text-base">🪙</span>
+          <span id="hud-coins-gained" class="font-display font-bold text-amber-300 text-sm md:text-base">+0</span>
+        </div>
+
+        <button id="mobile-controls-toggle" onclick="TrashGame.MobileControls.togglePreview()" class="mobile-controls-toggle glass-panel h-10 px-3 rounded-2xl flex items-center gap-1.5 text-[10px] font-bold text-cyan-200 border border-cyan-500/30 hover:border-cyan-300 transition-colors" title="Mostrar controles táctiles">
+          <span>📱</span><span>CONTROLES</span>
+        </button>
+
+        <button id="recycling-shop-button" onclick="TrashGame.Shop.open()" class="hidden glass-panel h-10 px-3 rounded-2xl flex items-center gap-1.5 text-[10px] font-bold text-emerald-200 border border-emerald-500/30 hover:border-emerald-300 transition-colors" title="Estación de reciclaje y tienda">
+          <span>♻️</span><span id="recycling-shop-distance">ESTACIÓN</span>
+        </button>
+
+        <!-- Pause -->
+        <button onclick="TrashGame.Main.togglePause()" class="glass-panel w-10 h-10 rounded-2xl flex items-center justify-center text-slate-300 hover:text-white hover:border-eco-400 transition-colors" title="Pausar">
+          <span class="text-base">⏸️</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Center Reticle / Crosshair -->
+    <div class="absolute inset-0 flex items-center justify-center pointer-events-none">
+      <div id="aim-crosshair" class="crosshair-dot"></div>
+    </div>
+
+    <!-- Combo Streak Banner -->
+    <div class="absolute top-24 left-1/2 -translate-x-1/2 pointer-events-none">
+      <div id="hud-combo-banner" class="hidden px-5 py-2 rounded-2xl bg-gradient-to-r from-amber-500 to-orange-500 text-slate-950 font-display font-black text-lg shadow-xl shadow-amber-500/40">
+        ¡COMBO LIMPIEZA x2!
+      </div>
+    </div>
+
+    <!-- Bottom Action Controls Bar -->
+    <div id="desktop-control-hints" class="absolute bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-3">
+      <div class="glass-panel px-4 py-2 rounded-2xl flex items-center gap-2 border border-emerald-500/30">
+        <span class="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 text-[11px] font-bold">CLICK IZQ / E</span>
+        <span id="hud-tool-hint" class="text-xs text-slate-200 font-semibold">Succionar Basura</span>
+      </div>
+
+      <div class="glass-panel px-4 py-2 rounded-2xl flex items-center gap-2 border border-cyan-500/30">
+        <span class="px-2 py-0.5 rounded bg-cyan-500/20 text-cyan-200 border border-cyan-500/40 text-[11px] font-bold">CLICK DER / F</span>
+        <span class="text-xs text-slate-200 font-semibold">Disparar</span>
+      </div>
+
+      <div class="glass-panel px-4 py-2 rounded-2xl flex items-center gap-2 border border-slate-700">
+        <span class="px-2 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700 text-[11px] font-bold">WASD / SPACE</span>
+        <span class="text-xs text-slate-300 font-semibold">Mover / Saltar | <span class="text-cyan-400 font-bold">SHIFT</span> Correr</span>
+      </div>
+    </div>
+
+    <!-- Touch controls: shown on phones and touch screens in every gameplay mode. -->
+    <div id="mobile-controls" class="mobile-controls" aria-label="Controles táctiles">
+      <div class="mobile-joystick" id="mobile-joystick" role="application" aria-label="Joystick virtual para caminar">
+        <span class="mobile-joystick__axis mobile-joystick__axis--x"></span>
+        <span class="mobile-joystick__axis mobile-joystick__axis--y"></span>
+        <span class="mobile-joystick__label">MOVER</span>
+        <span class="mobile-joystick__thumb" id="mobile-joystick-thumb"></span>
+      </div>
+      <div class="mobile-weapon-dock" aria-label="Arma equipada y mochila">
+        <button type="button" class="mobile-dock-btn" onclick="TrashGame.MobileControls.cycleWeapon(-1)" aria-label="Arma anterior">‹</button>
+        <div class="mobile-weapon-current"><span id="mobile-weapon-icon">🗜️</span><span id="mobile-weapon-name">Pinza Recolectora</span><small id="mobile-weapon-count"></small></div>
+        <button type="button" class="mobile-dock-btn" onclick="TrashGame.MobileControls.cycleWeapon(1)" aria-label="Arma siguiente">›</button>
+        <button type="button" class="mobile-backpack-btn" onclick="TrashGame.MobileControls.openBackpack()"><span>🎒</span> MOCHILA</button>
+      </div>
+      <div class="mobile-action-pad">
+        <button type="button" class="mobile-action mobile-action--shoot" data-mobile-hold="shoot" aria-label="Disparar"><span>🔫</span><small>DISPARAR</small></button>
+        <button type="button" class="mobile-action mobile-action--clean" data-mobile-hold="clean" aria-label="Limpiar o usar herramienta"><span>♻️</span><small id="mobile-clean-label">LIMPIAR</small></button>
+        <button type="button" class="mobile-action" data-mobile-hold="jump" aria-label="Saltar"><span>⬆️</span><small>SALTAR</small></button>
+        <button type="button" class="mobile-action mobile-action--run" data-mobile-hold="run" aria-label="Correr"><span>⚡</span><small>CORRER</small></button>
+        <button type="button" class="mobile-action mobile-action--pause" onclick="TrashGame.Main.togglePause()" aria-label="Pausar partida"><span>⏸</span><small>PAUSA</small></button>
+      </div>
+    </div>
+
+    <!-- Co-op Chat Feed -->
+    <div id="hud-coop-feed" class="absolute bottom-20 left-6 flex flex-col gap-1.5 pointer-events-none"></div>
+  </div>
+
+  <!-- ========================================== -->
+  <!-- MODAL: PAUSA                               -->
+  <!-- ========================================== -->
+  <div id="modal-pause" class="modal-backdrop hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md">
+    <div class="modal-card w-full max-w-sm glass-panel rounded-3xl p-6 text-center border border-white/10">
+      <h3 class="font-display text-2xl font-bold text-white mb-1">Juego en Pausa</h3>
+      <p class="text-xs text-slate-400 mb-6">Misión en curso en Trash Man 3D</p>
+      
+      <div class="space-y-3">
+        <button onclick="TrashGame.Main.togglePause()" class="w-full py-3 bg-eco-500 hover:bg-eco-400 text-slate-950 font-bold rounded-xl transition-all shadow-lg shadow-eco-500/30">
+          Reanudar Partida
+        </button>
+        <button onclick="TrashGame.Main.prepareSession(TrashGame.Main.currentMode.toLowerCase(), TrashGame.Main.currentMapId)" class="w-full py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold rounded-xl transition-all">
+          Reiniciar Nivel
+        </button>
+        <button onclick="TrashGame.Main.exitToLobby()" class="w-full py-2.5 bg-red-950/80 hover:bg-red-900 border border-red-500/40 text-red-200 font-semibold rounded-xl transition-all">
+          Salir al Lobby
+        </button>
+      </div>
+      <div class="mt-5 rounded-xl border border-cyan-500/20 bg-slate-950/60 p-3 text-left">
+        <div class="text-[10px] font-black uppercase tracking-widest text-cyan-300">🎮 Ajustes del mando</div>
+        <label class="mt-2 flex items-center justify-between text-[10px] text-slate-300">Invertir cámara vertical <input id="gamepad-invert-y" type="checkbox" class="accent-emerald-400" onchange="TrashGame.Gamepad.setOption('invertY', this.checked)"></label>
+        <label class="mt-2 flex items-center justify-between gap-2 text-[10px] text-slate-300">Sensibilidad <input id="gamepad-look-speed" type="range" min="1" max="5" step="0.1" value="2.8" class="w-28 accent-cyan-400" oninput="TrashGame.Gamepad.setOption('lookSpeed', Number(this.value))"></label>
+        <label class="mt-2 flex items-center justify-between text-[10px] text-slate-300">Vibración <input id="gamepad-rumble" type="checkbox" checked class="accent-emerald-400" onchange="TrashGame.Gamepad.setOption('rumbleEnabled', this.checked)"></label>
+        <p class="mt-2 text-[9px] leading-relaxed text-slate-500">Stick izq.: mover · Stick der.: cámara · A: saltar · RT/X: acción · LT/L3: correr · Cruceta ←/→: arma · ↑: mochila · LB/RB: zoom · Y: emote · Start: pausa · Select: silencio.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================== -->
+  <!-- MODAL: VICTORIA DE NIVEL                   -->
+  <!-- ========================================== -->
+  <div id="modal-victory" class="modal-backdrop hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/85 backdrop-blur-md">
+    <div class="modal-card w-full max-w-md glass-panel rounded-3xl p-6 md:p-8 text-center border-2 border-emerald-500/50 shadow-2xl shadow-emerald-500/20">
+      <div class="w-20 h-20 mx-auto rounded-3xl bg-gradient-to-tr from-emerald-500 via-teal-400 to-cyan-300 flex items-center justify-center text-4xl shadow-xl shadow-emerald-500/40 animate-bounce-subtle mb-4">
+        🏆
+      </div>
+      <h2 id="victory-title" class="font-display text-3xl font-bold text-white">¡Nivel Completado!</h2>
+      <p id="victory-subtitle" class="text-xs text-emerald-300 font-semibold mt-1">¡Has restaurado la pureza del ecosistema!</p>
+
+      <div class="grid grid-cols-2 gap-3 my-6">
+        <div class="p-3.5 rounded-2xl bg-slate-900/90 border border-amber-500/30">
+          <div class="text-[10px] uppercase font-bold text-amber-400">Monedas Ganadas</div>
+          <div id="victory-coins" class="font-display text-2xl font-bold text-amber-300 mt-1">+350 🪙</div>
+        </div>
+        <div class="p-3.5 rounded-2xl bg-slate-900/90 border border-cyan-500/30">
+          <div class="text-[10px] uppercase font-bold text-cyan-400">EXP & Rango</div>
+          <div id="victory-xp" class="font-display text-2xl font-bold text-cyan-300 mt-1">+500 XP</div>
+        </div>
+      </div>
+
+      <div class="flex gap-3">
+        <button onclick="TrashGame.Main.exitToLobby()" class="flex-1 py-3 bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold rounded-xl transition-all">
+          Volver al Lobby
+        </button>
+        <button onclick="TrashGame.Main.exitToLobby()" class="flex-1 py-3 bg-gradient-to-r from-emerald-500 to-teal-400 hover:from-emerald-400 hover:to-teal-300 text-slate-950 font-bold rounded-xl transition-all shadow-lg shadow-emerald-500/30">
+          Continuar
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================== -->
+  <!-- MODAL: GAME OVER                           -->
+  <!-- ========================================== -->
+  <div id="modal-gameover" class="modal-backdrop hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/85 backdrop-blur-md">
+    <div class="modal-card w-full max-w-md glass-panel rounded-3xl p-6 md:p-8 text-center border-2 border-red-500/50 shadow-2xl shadow-red-500/20">
+      <div class="w-20 h-20 mx-auto rounded-3xl bg-red-950/80 border border-red-500/50 flex items-center justify-center text-4xl mb-4">
+        💀
+      </div>
+      <h2 class="font-display text-3xl font-bold text-white">¡Misión Fallida!</h2>
+      <p class="text-xs text-red-300 font-semibold mt-1">La contaminación ha superado tus defensas.</p>
+
+      <div class="flex gap-3 mt-6">
+        <button onclick="TrashGame.Main.exitToLobby()" class="flex-1 py-3 bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold rounded-xl transition-all">
+          Volver al lobby
+        </button>
+        <button onclick="TrashGame.Main.prepareSession(TrashGame.Main.currentMode.toLowerCase(), TrashGame.Main.currentMapId)" class="flex-1 py-3 bg-red-600 hover:bg-red-500 text-white font-bold rounded-xl transition-all shadow-lg shadow-red-600/30">
+          Reintentar
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================== -->
+  <!-- MODAL: PERFIL (ESTILO FREE FIRE BATTLE ID) -->
+  <!-- ========================================== -->
+  <div id="modal-perfil" class="modal-backdrop hidden fixed inset-0 z-50 flex items-center justify-center p-3 md:p-6 bg-slate-950/85 backdrop-blur-md">
+    <div class="modal-card w-full max-w-4xl glass-panel rounded-3xl p-5 md:p-7 relative border border-cyan-500/40 max-h-[92vh] overflow-y-auto shadow-[0_0_60px_rgba(6,182,212,0.15)] flex flex-col gap-4">
+      
+      <!-- Close Button -->
+      <button onclick="TrashGame.UI.closeModal('modal-perfil')" class="absolute top-4 right-4 z-20 w-9 h-9 rounded-xl bg-slate-800/80 hover:bg-slate-700 text-slate-400 hover:text-white flex items-center justify-center transition-colors">✕</button>
+
+      <!-- 1. FREE FIRE PLAYER BANNER CARD (Dossier Táctico) -->
+      <div class="relative rounded-2xl bg-gradient-to-r from-slate-900 via-slate-950 to-slate-900 border border-cyan-500/40 p-4 md:p-5 overflow-hidden shadow-2xl">
+        <!-- Ambient Cyber Background Glows -->
+        <div class="absolute -top-12 -left-12 w-48 h-48 bg-cyan-500/10 rounded-full blur-3xl pointer-events-none"></div>
+        <div class="absolute -bottom-12 -right-12 w-48 h-48 bg-amber-500/10 rounded-full blur-3xl pointer-events-none"></div>
+
+        <div class="relative z-10 flex flex-col md:flex-row items-center md:items-start gap-4 md:gap-5">
+          
+          <!-- Avatar Frame Holográfico -->
+          <div class="relative flex-shrink-0 group">
+            <div class="w-20 h-20 md:w-24 md:h-24 rounded-2xl bg-gradient-to-tr from-cyan-500 via-emerald-400 to-amber-400 p-1 shadow-lg shadow-cyan-500/30">
+              <div class="w-full h-full bg-slate-950 rounded-[14px] flex items-center justify-center text-4xl md:text-5xl group-hover:scale-110 transition-transform">
+                🦸‍♂️
+              </div>
+            </div>
+            <!-- Rank Badge Over Avatar -->
+            <span class="absolute -bottom-2 left-1/2 -translate-x-1/2 px-2 py-0.5 rounded-full bg-gradient-to-r from-amber-500 to-orange-600 text-slate-950 text-[9px] font-black font-hud tracking-wider uppercase border border-amber-300 shadow-md whitespace-nowrap">
+              ⭐ DIAMANTE I
+            </span>
+          </div>
+
+          <!-- Player Info Details -->
+          <div class="flex-1 text-center md:text-left min-w-0">
+            <div class="flex flex-wrap items-center justify-center md:justify-start gap-2">
+              <h2 id="profile-name-display" class="font-tech text-2xl md:text-3xl font-black text-white tracking-wide">
+                EcoGuardián
+              </h2>
+              <span class="px-2 py-0.5 rounded-md bg-emerald-500/20 text-emerald-300 border border-emerald-400/50 text-[10px] font-black font-hud uppercase flex items-center gap-1">
+                <span>✓</span> VERIFICADO PRO
+              </span>
+              <span class="px-2 py-0.5 rounded-md bg-slate-800/80 text-cyan-300 border border-cyan-500/30 text-[10px] font-mono flex items-center gap-1.5">
+                <span>ID: TM-94285-PE</span>
+                <button onclick="TrashGame.UI.copyPlayerId()" title="Copiar ID" class="hover:text-white transition-colors">📋</button>
+              </span>
+            </div>
+
+            <!-- Title Selector with Tactical Badge -->
+            <div class="mt-2 flex flex-wrap items-center justify-center md:justify-start gap-2">
+              <span class="text-[11px] text-slate-400 font-hud uppercase font-bold tracking-wider">Título de Honor:</span>
+              <div class="relative inline-block">
+                <select onchange="TrashGame.State.changeTitle(this.value); TrashGame.Sound.playEquip()" class="bg-slate-900 border border-amber-500/40 rounded-lg px-2.5 py-1 text-xs font-hud font-black text-amber-300 focus:outline-none focus:border-amber-400 cursor-pointer shadow-sm">
+                  <option value="Recolector Novato">🌱 Recolector Novato</option>
+                  <option value="Recolector Profesional" selected>🎖️ Recolector Profesional</option>
+                  <option value="Héroe del Reciclaje">♻️ Héroe del Reciclaje</option>
+                  <option value="Azote de los Vertederos">⚡ Azote de los Vertederos</option>
+                  <option value="Cazador de Titanes">💀 Cazador de Titanes</option>
+                  <option value="Guardián Planetario">👑 Guardián Planetario</option>
+                </select>
+              </div>
+            </div>
+
+            <!-- XP / Battle Pass Progress Bar -->
+            <div class="mt-3 max-w-md">
+              <div class="flex items-center justify-between text-[11px] font-hud font-bold text-slate-300 mb-1">
+                <span class="text-emerald-400 uppercase tracking-wider">Nivel 14 • Pase de Batalla</span>
+                <span class="text-cyan-300 font-mono">2,450 / 3,000 XP (81%)</span>
+              </div>
+              <div class="w-full h-2.5 bg-slate-900 rounded-full overflow-hidden border border-slate-700/60 p-0.5 shadow-inner">
+                <div class="h-full bg-gradient-to-r from-emerald-400 via-teal-400 to-cyan-400 rounded-full w-[81%] shadow-[0_0_10px_#34d399] transition-all duration-500"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Free Fire Likes & Clan Badge (Interactive) -->
+          <div class="flex flex-row md:flex-col items-center md:items-end justify-between md:justify-start gap-2.5 flex-shrink-0 w-full md:w-auto pt-2 md:pt-0 border-t md:border-t-0 border-slate-800">
+            <!-- Like Button -->
+            <button id="btn-profile-like" onclick="TrashGame.UI.giveProfileLike()" class="px-3 py-1.5 rounded-xl bg-slate-900/90 border border-rose-500/40 hover:border-rose-400 text-rose-300 text-xs font-hud font-black flex items-center gap-1.5 shadow-md shadow-rose-950/40 transition-all hover:scale-105 active:scale-95 group">
+              <span class="text-base group-hover:animate-bounce">👍</span>
+              <span id="profile-likes-count" class="font-mono text-sm text-white">1,482</span>
+              <span class="text-[9px] uppercase tracking-wider text-rose-400">Likes</span>
+            </button>
+
+            <!-- Clan / Squad Tag -->
+            <div class="px-2.5 py-1 rounded-lg bg-slate-900/80 border border-slate-800 text-[10px] font-hud font-bold text-slate-400 flex items-center gap-1">
+              <span>🛡️ CLAN:</span>
+              <span class="text-amber-400 font-black">SQUAD-ALPHA [ECO]</span>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- 2. NAVIGATION TABS -->
+      <div class="flex items-center gap-2 overflow-x-auto no-scrollbar border-b border-slate-800/80 pb-2 flex-shrink-0">
+        <button id="btn-profile-tab-ranks" onclick="TrashGame.UI.switchProfileTab('ranks')" class="active px-4 py-2 rounded-xl text-xs font-hud font-black bg-emerald-500 text-slate-950 transition-all flex items-center gap-1.5 flex-shrink-0 border border-emerald-400 shadow-sm shadow-emerald-500/30">
+          <span>🏅</span> RANGOS & LIGAS
+        </button>
+        <button id="btn-profile-tab-stats" onclick="TrashGame.UI.switchProfileTab('stats')" class="px-4 py-2 rounded-xl text-xs font-hud font-black bg-slate-800/80 text-slate-300 hover:bg-slate-700 transition-all flex items-center gap-1.5 flex-shrink-0 border border-transparent">
+          <span>📊</span> ESTADÍSTICAS PRO
+        </button>
+        <button id="btn-profile-tab-medals" onclick="TrashGame.UI.switchProfileTab('medals')" class="px-4 py-2 rounded-xl text-xs font-hud font-black bg-slate-800/80 text-slate-300 hover:bg-slate-700 transition-all flex items-center gap-1.5 flex-shrink-0 border border-transparent">
+          <span>🎖️</span> MEDALLAS DE HONOR
+        </button>
+        <button id="btn-profile-tab-history" onclick="TrashGame.UI.switchProfileTab('history')" class="px-4 py-2 rounded-xl text-xs font-hud font-black bg-slate-800/80 text-slate-300 hover:bg-slate-700 transition-all flex items-center gap-1.5 flex-shrink-0 border border-transparent">
+          <span>📜</span> HISTORIAL DE COMBATE
+        </button>
+      </div>
+
+      <!-- 3. TAB CONTENTS -->
+      
+      <!-- TAB 1: RANGOS & LIGAS -->
+      <div id="profile-tab-ranks" class="grid grid-cols-1 md:grid-cols-3 gap-3.5">
+        
+        <!-- Rango Historia (Campaña) -->
+        <div class="p-4 rounded-2xl bg-gradient-to-br from-slate-900 to-slate-950 border border-emerald-500/40 shadow-lg shadow-emerald-950/30 flex flex-col justify-between relative overflow-hidden group hover:border-emerald-300 transition-all">
+          <div class="absolute -right-4 -bottom-4 w-20 h-20 bg-emerald-500/10 rounded-full blur-xl pointer-events-none"></div>
+          <div>
+            <div class="flex items-center justify-between mb-2">
+              <span class="text-[9px] uppercase font-hud font-black tracking-widest text-emerald-400 bg-emerald-950/80 px-2 py-0.5 rounded-full border border-emerald-500/40">CLASIFICATORIA 3D</span>
+              <span class="text-xs text-amber-300">⭐⭐⭐</span>
+            </div>
+            <div class="flex items-center gap-3 my-2">
+              <div class="w-12 h-12 rounded-xl bg-emerald-950/90 border border-emerald-400/50 flex items-center justify-center text-2xl shadow-inner group-hover:scale-110 transition-transform">
+                🌱
+              </div>
+              <div>
+                <div class="text-[10px] text-slate-400 font-hud uppercase">Rango Campaña:</div>
+                <div class="font-tech text-base font-black text-white">Guardián de Plata II</div>
+              </div>
+            </div>
+            <div class="mt-3">
+              <div class="flex justify-between text-[10px] font-mono text-slate-400 mb-1">
+                <span>Puntos de Limpieza:</span>
+                <span class="text-emerald-400 font-bold">1,850 / 2,000 PTS</span>
+              </div>
+              <div class="w-full h-1.5 bg-slate-900 rounded-full overflow-hidden border border-slate-800">
+                <div class="h-full bg-emerald-400 rounded-full w-[92%]"></div>
+              </div>
+            </div>
+          </div>
+          <div class="mt-3 pt-2.5 border-t border-slate-800/80 flex items-center justify-between text-[10px] text-slate-400 font-hud">
+            <span>Siguiente Rango:</span>
+            <span class="text-amber-300 font-black">Guardián de Oro I</span>
+          </div>
+        </div>
+
+        <!-- Rango Aventura (Boss Fight Raid) -->
+        <div class="p-4 rounded-2xl bg-gradient-to-br from-slate-900 to-slate-950 border border-purple-500/40 shadow-lg shadow-purple-950/30 flex flex-col justify-between relative overflow-hidden group hover:border-purple-300 transition-all">
+          <div class="absolute -right-4 -bottom-4 w-20 h-20 bg-purple-500/10 rounded-full blur-xl pointer-events-none"></div>
+          <div>
+            <div class="flex items-center justify-between mb-2">
+              <span class="text-[9px] uppercase font-hud font-black tracking-widest text-purple-400 bg-purple-950/80 px-2 py-0.5 rounded-full border border-purple-500/40">BOSS FIGHT RAID</span>
+              <span class="text-xs text-purple-400">💀💀💀</span>
+            </div>
+            <div class="flex items-center gap-3 my-2">
+              <div class="w-12 h-12 rounded-xl bg-purple-950/90 border border-purple-400/50 flex items-center justify-center text-2xl shadow-inner group-hover:scale-110 transition-transform">
+                ⚔️
+              </div>
+              <div>
+                <div class="text-[10px] text-slate-400 font-hud uppercase">Rango Asalto:</div>
+                <div class="font-tech text-base font-black text-white">Exterminador III</div>
+              </div>
+            </div>
+            <div class="mt-3">
+              <div class="flex justify-between text-[10px] font-mono text-slate-400 mb-1">
+                <span>Titanes Abatidos:</span>
+                <span class="text-purple-400 font-bold">14 / 20 Titanes</span>
+              </div>
+              <div class="w-full h-1.5 bg-slate-900 rounded-full overflow-hidden border border-slate-800">
+                <div class="h-full bg-purple-500 rounded-full w-[70%]"></div>
+              </div>
+            </div>
+          </div>
+          <div class="mt-3 pt-2.5 border-t border-slate-800/80 flex items-center justify-between text-[10px] text-slate-400 font-hud">
+            <span>Daño Máximo:</span>
+            <span class="text-purple-300 font-black">45,200 DMG</span>
+          </div>
+        </div>
+
+        <!-- Rango Multijugador (Squad 4P) -->
+        <div class="p-4 rounded-2xl bg-gradient-to-br from-slate-900 to-slate-950 border border-cyan-500/40 shadow-lg shadow-cyan-950/30 flex flex-col justify-between relative overflow-hidden group hover:border-cyan-300 transition-all">
+          <div class="absolute -right-4 -bottom-4 w-20 h-20 bg-cyan-500/10 rounded-full blur-xl pointer-events-none"></div>
+          <div>
+            <div class="flex items-center justify-between mb-2">
+              <span class="text-[9px] uppercase font-hud font-black tracking-widest text-cyan-400 bg-cyan-950/80 px-2 py-0.5 rounded-full border border-cyan-500/40">COOPERATIVO 4P</span>
+              <span class="text-xs text-cyan-300">⚡⚡⚡</span>
+            </div>
+            <div class="flex items-center gap-3 my-2">
+              <div class="w-12 h-12 rounded-xl bg-cyan-950/90 border border-cyan-400/50 flex items-center justify-center text-2xl shadow-inner group-hover:scale-110 transition-transform">
+                🤝
+              </div>
+              <div>
+                <div class="text-[10px] text-slate-400 font-hud uppercase">Rango Escuadrón:</div>
+                <div class="font-tech text-base font-black text-white">Élite Squad II</div>
+              </div>
+            </div>
+            <div class="mt-3">
+              <div class="flex justify-between text-[10px] font-mono text-slate-400 mb-1">
+                <span>Victorias en Equipo:</span>
+                <span class="text-cyan-400 font-bold">28 Victorias</span>
+              </div>
+              <div class="w-full h-1.5 bg-slate-900 rounded-full overflow-hidden border border-slate-800">
+                <div class="h-full bg-cyan-400 rounded-full w-[85%]"></div>
+              </div>
+            </div>
+          </div>
+          <div class="mt-3 pt-2.5 border-t border-slate-800/80 flex items-center justify-between text-[10px] text-slate-400 font-hud">
+            <span>Rol Favorito:</span>
+            <span class="text-cyan-300 font-black">MVP Recolector</span>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- TAB 2: ESTADÍSTICAS PRO -->
+      <div id="profile-tab-stats" class="hidden grid grid-cols-2 md:grid-cols-4 gap-3">
+        
+        <!-- Winrate -->
+        <div class="p-3.5 rounded-2xl bg-slate-900/90 border border-emerald-500/30 flex flex-col justify-between">
+          <div class="text-[10px] font-hud font-bold uppercase tracking-wider text-emerald-400">Tasa de Victoria</div>
+          <div class="my-1.5 flex items-baseline gap-1">
+            <span class="font-tech text-2xl md:text-3xl font-black text-emerald-300">81.2</span>
+            <span class="text-sm font-bold text-emerald-400">%</span>
+          </div>
+          <div class="w-full h-1.5 bg-slate-950 rounded-full overflow-hidden border border-slate-800">
+            <div class="h-full bg-emerald-400 rounded-full w-[81.2%]"></div>
+          </div>
+        </div>
+
+        <!-- Matches -->
+        <div class="p-3.5 rounded-2xl bg-slate-900/90 border border-cyan-500/30 flex flex-col justify-between">
+          <div class="text-[10px] font-hud font-bold uppercase tracking-wider text-cyan-400">Partidas & Ganadas</div>
+          <div class="my-1.5 flex items-baseline gap-1">
+            <span class="font-tech text-2xl md:text-3xl font-black text-cyan-300">39</span>
+            <span class="text-xs text-slate-400">/ 48 Jugadas</span>
+          </div>
+          <div class="text-[10px] text-slate-400 font-mono">9 Derrotas</div>
+        </div>
+
+        <!-- Trash Recycled -->
+        <div class="p-3.5 rounded-2xl bg-slate-900/90 border border-amber-500/30 flex flex-col justify-between">
+          <div class="text-[10px] font-hud font-bold uppercase tracking-wider text-amber-400">Basura Reciclada</div>
+          <div class="my-1.5 flex items-baseline gap-1">
+            <span class="font-tech text-2xl md:text-3xl font-black text-amber-300">12,450</span>
+            <span class="text-xs font-bold text-amber-400">kg</span>
+          </div>
+          <div class="text-[10px] text-slate-400 font-mono">~4,200 Árboles salvados</div>
+        </div>
+
+        <!-- Max Combo -->
+        <div class="p-3.5 rounded-2xl bg-slate-900/90 border border-rose-500/30 flex flex-col justify-between">
+          <div class="text-[10px] font-hud font-bold uppercase tracking-wider text-rose-400">Racha Máxima Eco</div>
+          <div class="my-1.5 flex items-baseline gap-1">
+            <span class="font-tech text-2xl md:text-3xl font-black text-rose-300">x24</span>
+            <span class="text-xs font-bold text-rose-400">Combo</span>
+          </div>
+          <div class="text-[10px] text-slate-400 font-mono">En Playa de Paracas</div>
+        </div>
+
+        <!-- Titan Total Damage -->
+        <div class="p-3.5 rounded-2xl bg-slate-900/90 border border-purple-500/30 flex flex-col justify-between">
+          <div class="text-[10px] font-hud font-bold uppercase tracking-wider text-purple-400">Daño Total a Titanes</div>
+          <div class="my-1.5 flex items-baseline gap-1">
+            <span class="font-tech text-2xl md:text-3xl font-black text-purple-300">458.2k</span>
+            <span class="text-xs font-bold text-purple-400">DMG</span>
+          </div>
+          <div class="text-[10px] text-slate-400 font-mono">Cañones de Plasma Eco</div>
+        </div>
+
+        <!-- Total Play Time -->
+        <div class="p-3.5 rounded-2xl bg-slate-900/90 border border-blue-500/30 flex flex-col justify-between">
+          <div class="text-[10px] font-hud font-bold uppercase tracking-wider text-blue-400">Tiempo de Servicio</div>
+          <div class="my-1.5 flex items-baseline gap-1">
+            <span class="font-tech text-2xl md:text-3xl font-black text-blue-300">14h 22m</span>
+          </div>
+          <div class="text-[10px] text-slate-400 font-mono">Patrullando 4 Mapas</div>
+        </div>
+
+        <!-- Coins Earned -->
+        <div class="p-3.5 rounded-2xl bg-slate-900/90 border border-yellow-500/30 flex flex-col justify-between">
+          <div class="text-[10px] font-hud font-bold uppercase tracking-wider text-yellow-400">Monedas Ganadas</div>
+          <div class="my-1.5 flex items-baseline gap-1">
+            <span class="font-tech text-2xl md:text-3xl font-black text-yellow-300">38,500</span>
+            <span class="text-xs">🪙</span>
+          </div>
+          <div class="text-[10px] text-slate-400 font-mono">10,191 Disponibles</div>
+        </div>
+
+        <!-- MVP Honors -->
+        <div class="p-3.5 rounded-2xl bg-slate-900/90 border border-teal-500/30 flex flex-col justify-between">
+          <div class="text-[10px] font-hud font-bold uppercase tracking-wider text-teal-400">Menciones MVP</div>
+          <div class="my-1.5 flex items-baseline gap-1">
+            <span class="font-tech text-2xl md:text-3xl font-black text-teal-300">22</span>
+            <span class="text-xs font-bold text-teal-400">Premios</span>
+          </div>
+          <div class="text-[10px] text-slate-400 font-mono">Top 5% de Guardianes</div>
+        </div>
+
+      </div>
+
+      <!-- TAB 3: MEDALLAS & TROFEOS DE HONOR -->
+      <div id="profile-tab-medals" class="hidden grid grid-cols-2 md:grid-cols-3 gap-3">
+        
+        <div onclick="TrashGame.Sound.playFanfare(); TrashGame.UI.showToast('Medalla de Oro: 100% de la costa purificada de plásticos.', 'success')" class="p-3.5 rounded-2xl bg-slate-900/80 border border-amber-500/40 hover:border-amber-400 transition-all flex items-center gap-3 cursor-pointer group hover:scale-[1.02]">
+          <div class="w-12 h-12 rounded-xl bg-amber-950/80 border border-amber-400/50 flex items-center justify-center text-3xl group-hover:scale-110 transition-transform flex-shrink-0">
+            🏖️
+          </div>
+          <div>
+            <div class="text-xs font-hud font-black text-white group-hover:text-amber-300 transition-colors">HÉROE DE PLAYA</div>
+            <div class="text-[10px] text-amber-400 font-bold">100% Costa limpia</div>
+            <div class="text-[9px] text-slate-400">Nivel Oro • Paracas</div>
+          </div>
+        </div>
+
+        <div onclick="TrashGame.Sound.playFanfare(); TrashGame.UI.showToast('Medalla Alfa: Racha invicta de 10 misiones perfectas.', 'success')" class="p-3.5 rounded-2xl bg-slate-900/80 border border-emerald-500/40 hover:border-emerald-400 transition-all flex items-center gap-3 cursor-pointer group hover:scale-[1.02]">
+          <div class="w-12 h-12 rounded-xl bg-emerald-950/80 border border-emerald-400/50 flex items-center justify-center text-3xl group-hover:scale-110 transition-transform flex-shrink-0">
+            ♻️
+          </div>
+          <div>
+            <div class="text-xs font-hud font-black text-white group-hover:text-emerald-300 transition-colors">RECICLADOR ALFA</div>
+            <div class="text-[10px] text-emerald-400 font-bold">Racha Invicta de 10</div>
+            <div class="text-[9px] text-slate-400">Nivel Diamante</div>
+          </div>
+        </div>
+
+        <div onclick="TrashGame.Sound.playFanfare(); TrashGame.UI.showToast('Medalla Fluvial: 0 microplásticos en las aguas del río.', 'success')" class="p-3.5 rounded-2xl bg-slate-900/80 border border-cyan-500/40 hover:border-cyan-400 transition-all flex items-center gap-3 cursor-pointer group hover:scale-[1.02]">
+          <div class="w-12 h-12 rounded-xl bg-cyan-950/80 border border-cyan-400/50 flex items-center justify-center text-3xl group-hover:scale-110 transition-transform flex-shrink-0">
+            🤿
+          </div>
+          <div>
+            <div class="text-xs font-hud font-black text-white group-hover:text-cyan-300 transition-colors">GUARDIÁN FLUVIAL</div>
+            <div class="text-[10px] text-cyan-400 font-bold">Río 100% Cristalino</div>
+            <div class="text-[9px] text-slate-400">Nivel Platino</div>
+          </div>
+        </div>
+
+        <div onclick="TrashGame.Sound.playFanfare(); TrashGame.UI.showToast('Medalla Mítica: Gólem de Basura destruido en solitario.', 'success')" class="p-3.5 rounded-2xl bg-slate-900/80 border border-purple-500/40 hover:border-purple-400 transition-all flex items-center gap-3 cursor-pointer group hover:scale-[1.02]">
+          <div class="w-12 h-12 rounded-xl bg-purple-950/80 border border-purple-400/50 flex items-center justify-center text-3xl group-hover:scale-110 transition-transform flex-shrink-0">
+            👑
+          </div>
+          <div>
+            <div class="text-xs font-hud font-black text-white group-hover:text-purple-300 transition-colors">CAZA-TITANES</div>
+            <div class="text-[10px] text-purple-400 font-bold">Boss Gólem Vencido</div>
+            <div class="text-[9px] text-slate-400">Nivel Mítico • 14 Kills</div>
+          </div>
+        </div>
+
+        <div onclick="TrashGame.Sound.playFanfare(); TrashGame.UI.showToast('Medalla Forestal: Bosque Amazónico libre de residuos industriales.', 'success')" class="p-3.5 rounded-2xl bg-slate-900/80 border border-green-500/40 hover:border-green-400 transition-all flex items-center gap-3 cursor-pointer group hover:scale-[1.02]">
+          <div class="w-12 h-12 rounded-xl bg-green-950/80 border border-green-400/50 flex items-center justify-center text-3xl group-hover:scale-110 transition-transform flex-shrink-0">
+            🌲
+          </div>
+          <div>
+            <div class="text-xs font-hud font-black text-white group-hover:text-green-300 transition-colors">CORAZÓN VERDE</div>
+            <div class="text-[10px] text-green-400 font-bold">Fauna Restaurada</div>
+            <div class="text-[9px] text-slate-400">Nivel Épico</div>
+          </div>
+        </div>
+
+        <div onclick="TrashGame.Sound.playFanfare(); TrashGame.UI.showToast('Medalla de Hermandad: 50 salas cooperativas completadas con escuadrón.', 'success')" class="p-3.5 rounded-2xl bg-slate-900/80 border border-rose-500/40 hover:border-rose-400 transition-all flex items-center gap-3 cursor-pointer group hover:scale-[1.02]">
+          <div class="w-12 h-12 rounded-xl bg-rose-950/80 border border-rose-400/50 flex items-center justify-center text-3xl group-hover:scale-110 transition-transform flex-shrink-0">
+            🤝
+          </div>
+          <div>
+            <div class="text-xs font-hud font-black text-white group-hover:text-rose-300 transition-colors">HERMANDAD ECO</div>
+            <div class="text-[10px] text-rose-400 font-bold">Squad Cooperativo</div>
+            <div class="text-[9px] text-slate-400">Nivel Legendario</div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- TAB 4: HISTORIAL DE COMBATE -->
+      <div id="profile-tab-history" class="hidden flex flex-col gap-2.5">
+        
+        <div class="p-3 rounded-2xl bg-slate-900/80 border border-emerald-500/30 flex items-center justify-between">
+          <div class="flex items-center gap-3">
+            <span class="text-2xl p-2 rounded-xl bg-emerald-950/90 border border-emerald-400/30 text-emerald-300">🏆</span>
+            <div>
+              <div class="text-xs font-hud font-black text-white">VICTORIA • PLAYA CRISTALINA (PARACAS)</div>
+              <div class="text-[10px] text-slate-400">Modo Historia • 100% Limpieza lograda • Sin daños</div>
+            </div>
+          </div>
+          <div class="text-right">
+            <span class="text-xs font-hud font-black text-emerald-400">+500 🪙</span>
+            <div class="text-[9px] text-slate-400">Hace 18m</div>
+          </div>
+        </div>
+
+        <div class="p-3 rounded-2xl bg-slate-900/80 border border-purple-500/30 flex items-center justify-between">
+          <div class="flex items-center gap-3">
+            <span class="text-2xl p-2 rounded-xl bg-purple-950/90 border border-purple-400/30 text-purple-300">💀</span>
+            <div>
+              <div class="text-xs font-hud font-black text-white">VICTORIA • BOSS RAID: GÓLEM DE VERTEDERO</div>
+              <div class="text-[10px] text-slate-400">Modo Aventura • Titán abatido en 2m 14s • Daño: 34,500</div>
+            </div>
+          </div>
+          <div class="text-right">
+            <span class="text-xs font-hud font-black text-purple-400">+1,200 🪙</span>
+            <div class="text-[9px] text-slate-400">Hace 1h</div>
+          </div>
+        </div>
+
+        <div class="p-3 rounded-2xl bg-slate-900/80 border border-cyan-500/30 flex items-center justify-between">
+          <div class="flex items-center gap-3">
+            <span class="text-2xl p-2 rounded-xl bg-cyan-950/90 border border-cyan-400/30 text-cyan-300">⚡</span>
+            <div>
+              <div class="text-xs font-hud font-black text-white">VICTORIA • SQUAD CO-OP: CIUDAD TÓXICA</div>
+              <div class="text-[10px] text-slate-400">Sala #TRASH-7 • 4 Jugadores • MVP del Reciclaje</div>
+            </div>
+          </div>
+          <div class="text-right">
+            <span class="text-xs font-hud font-black text-cyan-400">+850 🪙</span>
+            <div class="text-[9px] text-slate-400">Ayer</div>
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ========================================== -->
+  <!-- MODAL: INVENTARIO (ESTILO FREE FIRE BÓVEDA) -->
+  <!-- ========================================== -->
+  <div id="modal-inventario" class="modal-backdrop hidden fixed inset-0 z-50 flex items-center justify-center p-3 md:p-5 bg-slate-950/85 backdrop-blur-md">
+    <div class="modal-card w-full max-w-6xl glass-panel rounded-3xl p-5 md:p-6 relative border border-amber-500/40 h-[92vh] max-h-[92vh] flex flex-col shadow-[0_0_60px_rgba(245,158,11,0.15)]">
+      
+      <!-- Header -->
+      <div class="flex items-center justify-between pb-3 border-b border-slate-800/90 flex-shrink-0">
+        <div class="flex items-center gap-3">
+          <div class="w-11 h-11 rounded-2xl bg-gradient-to-tr from-amber-500 via-orange-500 to-yellow-400 p-0.5 shadow-md shadow-amber-500/30 flex items-center justify-center">
+            <div class="w-full h-full bg-slate-950 rounded-[14px] flex items-center justify-center text-xl">
+              🎒
+            </div>
+          </div>
+          <div>
+            <div class="flex items-center gap-2">
+              <span class="text-[9px] uppercase font-black tracking-[0.2em] text-amber-400 bg-amber-950/90 px-2 py-0.5 rounded-md border border-amber-500/40 font-hud">
+                BÓVEDA DE ARMAS & SKINS
+              </span>
+              <span class="text-[9px] uppercase font-black tracking-widest text-emerald-400 bg-emerald-950/80 px-2 py-0.5 rounded-md border border-emerald-500/30 font-hud">
+                PREVIEW 3D EN VIVO
+              </span>
+            </div>
+            <h2 class="font-tech text-xl md:text-2xl font-black text-white tracking-wide mt-0.5">
+              ARMERÍA & PERSONALIZACIÓN 3D
+            </h2>
+          </div>
+        </div>
+        <button onclick="TrashGame.UI.closeModal('modal-inventario')" class="w-9 h-9 rounded-xl bg-slate-800/80 hover:bg-slate-700 text-slate-400 hover:text-white flex items-center justify-center transition-colors">✕</button>
+      </div>
+
+      <!-- Main Layout: Left Side (Options/Grid) & Right Side (Live 3D Hero Preview) -->
+      <div class="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-4 min-h-0 overflow-hidden py-3">
+        
+        <!-- LADO IZQUIERDO: Categorías & Lista de Skins (Free Fire Vault Style) -->
+        <div class="lg:col-span-7 flex flex-col min-h-0 border-r border-slate-800/60 pr-0 lg:pr-3">
+          
+          <!-- Category Selector Tabs -->
+          <div class="flex items-center gap-1.5 pb-3 overflow-x-auto no-scrollbar flex-shrink-0">
+            <button onclick="TrashGame.UI.filterInventory('head')" class="inv-tab active px-3 py-1.5 rounded-xl text-xs font-hud font-black bg-emerald-500 text-slate-950 transition-all flex items-center gap-1.5 flex-shrink-0 border border-emerald-400 shadow-sm shadow-emerald-500/30">
+              <span>🧢</span> CABEZA
+            </button>
+            <button onclick="TrashGame.UI.filterInventory('torso')" class="inv-tab px-3 py-1.5 rounded-xl text-xs font-hud font-black bg-slate-800/80 text-slate-300 hover:bg-slate-700 transition-all flex items-center gap-1.5 flex-shrink-0 border border-transparent">
+              <span>👕</span> TORSO
+            </button>
+            <button onclick="TrashGame.UI.filterInventory('legs')" class="inv-tab px-3 py-1.5 rounded-xl text-xs font-hud font-black bg-slate-800/80 text-slate-300 hover:bg-slate-700 transition-all flex items-center gap-1.5 flex-shrink-0 border border-transparent">
+              <span>👖</span> PANTALÓN
+            </button>
+            <button onclick="TrashGame.UI.filterInventory('feet')" class="inv-tab px-3 py-1.5 rounded-xl text-xs font-hud font-black bg-slate-800/80 text-slate-300 hover:bg-slate-700 transition-all flex items-center gap-1.5 flex-shrink-0 border border-transparent">
+              <span>👟</span> CALZADO
+            </button>
+            <button onclick="TrashGame.UI.filterInventory('weapon')" class="inv-tab px-3 py-1.5 rounded-xl text-xs font-hud font-black bg-slate-800/80 text-slate-300 hover:bg-slate-700 transition-all flex items-center gap-1.5 flex-shrink-0 border border-transparent">
+              <span>⚔️</span> ARMAS
+            </button>
+          </div>
+
+          <!-- Items Grid -->
+          <div id="inventory-items-grid" class="grid grid-cols-2 sm:grid-cols-3 gap-2.5 overflow-y-auto flex-1 pr-1.5 pb-2">
+            <!-- Dynamically populated by TrashGame.UI.renderInventory -->
+          </div>
+        </div>
+
+        <!-- LADO DERECHO: Personaje 3D en Tiempo Real (Interactive 3D Viewport) -->
+        <div class="lg:col-span-5 flex flex-col min-h-0 bg-gradient-to-b from-slate-900/90 via-slate-950/95 to-slate-950 rounded-2xl border border-slate-800/90 p-3.5 relative overflow-hidden shadow-2xl">
+          
+          <!-- Viewport Header -->
+          <div class="flex items-center justify-between z-10 flex-shrink-0 mb-1">
+            <div class="flex items-center gap-1.5">
+              <span class="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
+              <span class="text-[10px] uppercase font-hud font-black tracking-widest text-emerald-300">
+                CAMERINO 3D EN VIVO
+              </span>
+            </div>
+            <button onclick="TrashGame.InventoryPreview.centerView()" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-[10px] font-hud font-bold text-cyan-300 flex items-center gap-1 transition-colors border border-cyan-500/30">
+              <span>🔄</span> Centrar
+            </button>
+          </div>
+
+          <!-- 3D Canvas Box -->
+          <div class="flex-1 min-h-[260px] relative flex items-center justify-center overflow-hidden">
+            <canvas id="inv-preview-canvas" class="w-full h-full cursor-grab active:cursor-grabbing block"></canvas>
+            
+            <!-- Floating Free Fire Test Emotes Bar inside preview -->
+            <div class="absolute top-2 right-2 flex flex-col gap-1.5 z-10 pointer-events-auto">
+              <button onclick="TrashGame.InventoryPreview.testEmote('dance')" class="w-8 h-8 rounded-xl bg-slate-900/85 hover:bg-purple-600 text-white text-xs flex items-center justify-center border border-purple-500/40 shadow-md transition-all hover:scale-110" title="Probar Baile">
+                💃
+              </button>
+              <button onclick="TrashGame.InventoryPreview.testEmote('flex')" class="w-8 h-8 rounded-xl bg-slate-900/85 hover:bg-cyan-600 text-white text-xs flex items-center justify-center border border-cyan-500/40 shadow-md transition-all hover:scale-110" title="Probar Flex">
+                💪
+              </button>
+              <button onclick="TrashGame.InventoryPreview.testEmote('kungfu')" class="w-8 h-8 rounded-xl bg-slate-900/85 hover:bg-amber-600 text-white text-xs flex items-center justify-center border border-amber-500/40 shadow-md transition-all hover:scale-110" title="Probar Patada">
+                🥋
+              </button>
+            </div>
+          </div>
+
+          <!-- Viewport Footer Help Hint -->
+          <div class="text-center pt-1.5 z-10 flex-shrink-0">
+            <span class="text-[9px] uppercase font-hud font-bold tracking-widest text-slate-400 bg-slate-900/80 px-3 py-1 rounded-full border border-slate-800">
+              🖱️ Arrastra con el ratón sobre el héroe para girar 360°
+            </span>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- PIE DEL INVENTARIO: Resumen de skins & Botón de Guardar Cambios -->
+      <div class="pt-3 border-t border-slate-800/90 flex flex-col sm:flex-row items-center justify-between gap-3 flex-shrink-0">
+        
+        <!-- Equipped Items Quick Summary -->
+        <div class="flex items-center gap-1.5 text-xs overflow-x-auto max-w-full sm:max-w-xl no-scrollbar font-hud">
+          <span class="text-[10px] uppercase font-black text-slate-400 mr-1 flex-shrink-0">Equipado:</span>
+          <div id="inventory-equipped-summary" class="flex items-center gap-1 flex-wrap">
+            <!-- Dynamically updated -->
+          </div>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="flex items-center gap-2.5 flex-shrink-0 w-full sm:w-auto justify-end">
+          <!-- Deshacer -->
+          <button onclick="TrashGame.UI.undoInventoryChanges()" class="px-4 py-2 rounded-xl bg-slate-800/90 hover:bg-slate-700 text-slate-300 font-hud font-bold text-xs flex items-center gap-1.5 border border-slate-700 transition-all hover:scale-105 active:scale-95" title="Revertir cambios no guardados">
+            <span>↩️</span> Deshacer
+          </button>
+
+          <!-- Guardar Cambios -->
+          <button id="btn-save-inventory" onclick="TrashGame.UI.saveInventoryChanges()" class="px-6 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 via-teal-400 to-cyan-400 hover:from-emerald-400 hover:to-cyan-300 text-slate-950 font-hud font-black text-xs md:text-sm tracking-wider flex items-center gap-2 shadow-lg shadow-emerald-500/30 transition-all hover:scale-105 active:scale-95">
+            <span>💾</span> GUARDAR CAMBIOS
+          </button>
+        </div>
+
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ========================================== -->
+  <!-- MODAL: RULETA                              -->
+  <!-- ========================================== -->
+  <div id="modal-ruleta" class="modal-backdrop hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md">
+    <div class="modal-card w-full max-w-xl glass-panel rounded-3xl p-6 md:p-8 relative border border-white/10 flex flex-col items-center">
+      <button onclick="TrashGame.UI.closeModal('modal-ruleta')" class="absolute top-5 right-5 w-9 h-9 rounded-xl bg-slate-800/80 hover:bg-slate-700 text-slate-400 hover:text-white flex items-center justify-center transition-colors">✕</button>
+
+      <div class="text-center mb-4">
+        <span class="text-xs font-bold tracking-widest uppercase text-eco-400 bg-eco-950/80 px-3 py-1 rounded-full border border-eco-500/30">Minijuego Eco-Recompensa</span>
+        <h2 class="font-display text-2xl md:text-3xl font-bold text-white mt-1">La Gran Ruleta de Reciclaje</h2>
+        <p class="text-xs text-slate-400 mt-1">¡Gana monedas (200, 500, 1000), skins épicas, armas y mascotas!</p>
+      </div>
+
+      <div class="relative w-72 h-72 md:w-80 md:h-80 flex items-center justify-center my-2">
+        <div class="absolute inset-0 rounded-full border-4 border-eco-400/30 shadow-[0_0_40px_rgba(34,197,94,0.3)] animate-pulse-glow"></div>
+        <canvas id="wheel-canvas" width="400" height="400" class="w-full h-full rounded-full shadow-2xl"></canvas>
+        <div class="absolute w-14 h-14 rounded-full bg-slate-900 border-4 border-amber-400 shadow-xl flex items-center justify-center pointer-events-none z-10">
+          <span class="text-xl">♻️</span>
+        </div>
+        <div class="absolute -top-3 left-1/2 -translate-x-1/2 z-20">
+          <div class="w-0 h-0 border-l-[14px] border-l-transparent border-r-[14px] border-r-transparent border-t-[24px] border-t-amber-400 drop-shadow-[0_4px_8px_rgba(0,0,0,0.8)]"></div>
+        </div>
+      </div>
+
+      <div class="mt-4 flex flex-col items-center gap-2 w-full max-w-xs">
+        <button id="btn-spin-wheel" onclick="TrashGame.Roulette.spin()" class="w-full py-3.5 px-6 rounded-2xl bg-gradient-to-r from-emerald-500 via-teal-400 to-cyan-400 hover:from-emerald-400 hover:to-cyan-300 text-slate-950 font-display font-bold text-lg shadow-xl shadow-emerald-500/30 hover:scale-105 active:scale-95 transition-all flex items-center justify-center gap-2">
+          <span>🎲 ¡Girar Ruleta!</span>
+        </button>
+        <span class="text-xs text-amber-300 font-semibold flex items-center gap-1">
+          <span>Costo:</span> <span class="bg-amber-500/20 px-2 py-0.5 rounded text-amber-300 border border-amber-500/30">100 🪙 o 1 Giro Gratis</span>
+        </span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================== -->
+  <!-- MODAL: MASCOTAS (ESTILO FREE FIRE 3D SHOW) -->
+  <!-- ========================================== -->
+  <div id="modal-mascota" class="modal-backdrop hidden fixed inset-0 z-50 flex items-center justify-center p-3 md:p-5 bg-slate-950/85 backdrop-blur-md">
+    <div class="modal-card w-full max-w-5xl glass-panel rounded-3xl p-5 md:p-6 relative border border-purple-500/40 h-[92vh] max-h-[92vh] flex flex-col shadow-[0_0_60px_rgba(168,85,247,0.15)]">
+      
+      <!-- Header -->
+      <div class="flex items-center justify-between pb-3 border-b border-slate-800/90 flex-shrink-0">
+        <div class="flex items-center gap-3">
+          <div class="w-11 h-11 rounded-2xl bg-gradient-to-tr from-purple-600 via-fuchsia-500 to-pink-500 p-0.5 shadow-md shadow-purple-500/30 flex items-center justify-center">
+            <div class="w-full h-full bg-slate-950 rounded-[14px] flex items-center justify-center text-xl">
+              🐾
+            </div>
+          </div>
+          <div>
+            <div class="flex items-center gap-2">
+              <span class="text-[9px] uppercase font-black tracking-[0.2em] text-purple-400 bg-purple-950/90 px-2 py-0.5 rounded-md border border-purple-500/40 font-hud">
+                COMPAÑEROS ECO-BATTLE
+              </span>
+              <span class="text-[9px] uppercase font-black tracking-widest text-emerald-400 bg-emerald-950/80 px-2 py-0.5 rounded-md border border-emerald-500/30 font-hud">
+                PREVIEW 3D EN VIVO
+              </span>
+            </div>
+            <h2 class="font-tech text-xl md:text-2xl font-black text-white tracking-wide mt-0.5">
+              REFUGIO DE MASCOTAS 3D
+            </h2>
+          </div>
+        </div>
+        <button onclick="TrashGame.UI.closeModal('modal-mascota')" class="w-9 h-9 rounded-xl bg-slate-800/80 hover:bg-slate-700 text-slate-400 hover:text-white flex items-center justify-center transition-colors">✕</button>
+      </div>
+
+      <!-- Main Layout: Left Side (List of Pets) & Right Side (Live 3D Pet Showcase) -->
+      <div class="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-4 min-h-0 overflow-hidden py-3">
+        
+        <!-- LADO IZQUIERDO: Lista Táctica de Mascotas -->
+        <div class="lg:col-span-6 flex flex-col min-h-0 border-r border-slate-800/60 pr-0 lg:pr-3">
+          <div class="text-[10px] uppercase font-hud font-black tracking-widest text-slate-400 mb-2 flex items-center justify-between">
+            <span>MASCOTAS DISPONIBLES</span>
+            <span class="text-purple-400">4 COMPAÑEROS</span>
+          </div>
+
+          <!-- Pets List Container -->
+          <div id="pets-list-container" class="flex flex-col gap-2.5 overflow-y-auto flex-1 pr-1.5 pb-2">
+            <!-- Dynamically populated by TrashGame.UI.renderPetsList -->
+          </div>
+        </div>
+
+        <!-- LADO DERECHO: Camerino 3D Interactivo de la Mascota -->
+        <div class="lg:col-span-6 flex flex-col min-h-0 bg-gradient-to-b from-slate-900/90 via-slate-950/95 to-slate-950 rounded-2xl border border-slate-800/90 p-3.5 relative overflow-hidden shadow-2xl justify-between">
+          
+          <!-- Viewport Header -->
+          <div class="flex items-center justify-between z-10 flex-shrink-0 mb-1">
+            <div class="flex items-center gap-1.5">
+              <span class="w-2 h-2 rounded-full bg-purple-400 animate-ping"></span>
+              <span class="text-[10px] uppercase font-hud font-black tracking-widest text-purple-300">
+                HABITÁCULO 3D EN TIEMPO REAL
+              </span>
+            </div>
+            <div class="flex items-center gap-1.5">
+              <button onclick="TrashGame.PetPreview.playPetTrick()" class="px-2.5 py-1 rounded-lg bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-[10px] font-hud font-bold text-white flex items-center gap-1 transition-all shadow-sm shadow-purple-600/30 hover:scale-105 active:scale-95" title="Hacer Acrobacia">
+                <span>✨</span> Truco 3D
+              </button>
+              <button onclick="TrashGame.PetPreview.centerView()" class="px-2 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-[10px] font-hud font-bold text-cyan-300 flex items-center gap-1 transition-colors border border-cyan-500/30" title="Centrar Vista">
+                <span>🔄</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- 3D Canvas Box -->
+          <div class="flex-1 min-h-[240px] relative flex items-center justify-center overflow-hidden my-1">
+            <canvas id="pet-preview-canvas" class="w-full h-full cursor-grab active:cursor-grabbing block"></canvas>
+          </div>
+
+          <!-- Viewport Help Hint -->
+          <div class="text-center pb-2 z-10 flex-shrink-0">
+            <span class="text-[9px] uppercase font-hud font-bold tracking-widest text-slate-400 bg-slate-900/80 px-3 py-1 rounded-full border border-slate-800">
+              🖱️ Arrastra sobre la mascota para girar 360°
+            </span>
+          </div>
+
+          <!-- Selected Pet Info Card & Action Button -->
+          <div class="p-3.5 rounded-xl bg-slate-900/90 border border-purple-500/30 flex flex-col gap-2 flex-shrink-0">
+            <div class="flex items-center justify-between">
+              <div>
+                <div class="flex items-center gap-2">
+                  <h3 id="pet-detail-name" class="font-tech text-base font-black text-white">Eco-Bot 3000</h3>
+                  <span id="pet-detail-rarity" class="text-[9px] font-black uppercase font-hud px-2 py-0.5 rounded-full border bg-cyan-950/90 text-cyan-300 border-cyan-500/40">RARO</span>
+                </div>
+                <div class="text-[10px] text-purple-300 font-hud font-bold flex items-center gap-1 mt-0.5">
+                  <span>⭐ Vínculo Máximo:</span> <span class="text-white">Nivel 7</span>
+                </div>
+              </div>
+              <div id="pet-detail-bonus" class="text-xs font-hud font-black text-emerald-400 bg-emerald-950/80 px-2.5 py-1 rounded-lg border border-emerald-500/40">
+                ✨ +15% Monedas por basura
+              </div>
+            </div>
+
+            <p id="pet-detail-desc" class="text-xs text-slate-400 line-clamp-2">
+              Pequeño androide flotante que escanea y compacta residuos en tiempo real.
+            </p>
+
+            <button id="btn-equip-pet" onclick="TrashGame.UI.confirmEquipPet()" class="w-full py-2.5 rounded-xl bg-gradient-to-r from-purple-600 via-fuchsia-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white font-hud font-black text-xs tracking-wider flex items-center justify-center gap-1.5 shadow-lg shadow-purple-600/30 transition-all hover:scale-[1.02] active:scale-95">
+              <span>🐾</span> EQUIPAR ESTA MASCOTA
+            </button>
+          </div>
+
+        </div>
+
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ========================================== -->
+  <!-- MODAL: PERSONAJES                          -->
+  <!-- ========================================== -->
+  <div id="modal-personajes" class="modal-backdrop hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md">
+    <div class="modal-card w-full max-w-3xl glass-panel rounded-3xl p-6 md:p-8 relative border border-white/10 max-h-[90vh] overflow-y-auto">
+      <button onclick="TrashGame.UI.closeModal('modal-personajes')" class="absolute top-5 right-5 w-9 h-9 rounded-xl bg-slate-800/80 hover:bg-slate-700 text-slate-400 hover:text-white flex items-center justify-center transition-colors">✕</button>
+
+      <div class="mb-6">
+        <h2 class="font-display text-2xl font-bold text-white flex items-center gap-2">🦸 Héroes del Reciclaje</h2>
+        <p class="text-xs text-slate-400">Selecciona el personaje que controlas en el Lobby y en todas las partidas 3D</p>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <!-- Abraham -->
+        <div id="card-char-abraham" class="p-5 rounded-3xl bg-slate-900/80 border-2 border-emerald-500 shadow-xl shadow-emerald-500/20 relative flex flex-col justify-between">
+          <div class="absolute top-4 right-4 bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 text-[10px] font-bold px-2 py-0.5 rounded-full">ACTUAL</div>
+          <div>
+            <div class="w-16 h-16 rounded-2xl bg-gradient-to-tr from-emerald-600 to-teal-400 flex items-center justify-center text-3xl shadow-lg mb-3">🧢</div>
+            <h3 class="font-display text-xl font-bold text-white">Abraham</h3>
+            <span class="text-xs font-semibold text-emerald-400">El Guardián Urbano</span>
+            <p class="text-xs text-slate-400 mt-2">Experto en fuerza física y recolección rápida de residuos pesados. Equipado con exoesqueleto y tanque compresor.</p>
+            <div class="mt-4 space-y-2">
+              <div>
+                <div class="flex justify-between text-[11px] font-semibold text-slate-300"><span>Capacidad de Carga</span> <span>90%</span></div>
+                <div class="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden mt-0.5"><div class="h-full bg-emerald-400 w-[90%]"></div></div>
+              </div>
+              <div>
+                <div class="flex justify-between text-[11px] font-semibold text-slate-300"><span>Fuerza de Combate</span> <span>85%</span></div>
+                <div class="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden mt-0.5"><div class="h-full bg-amber-400 w-[85%]"></div></div>
+              </div>
+              <div>
+                <div class="flex justify-between text-[11px] font-semibold text-slate-300"><span>Velocidad de Movimiento</span> <span>75%</span></div>
+                <div class="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden mt-0.5"><div class="h-full bg-cyan-400 w-[75%]"></div></div>
+              </div>
+            </div>
+          </div>
+          <button id="btn-select-abraham" onclick="TrashGame.UI.selectCharacter('abraham')" class="mt-6 w-full py-2.5 rounded-xl bg-emerald-500 text-slate-950 font-bold text-xs uppercase tracking-wider hover:bg-emerald-400 transition-colors shadow-md">Seleccionado</button>
+        </div>
+
+        <!-- Sasha -->
+        <div id="card-char-sasha" class="p-5 rounded-3xl bg-slate-900/80 border-2 border-slate-700/60 hover:border-cyan-500/60 shadow-xl relative flex flex-col justify-between transition-colors">
+          <div>
+            <div class="w-16 h-16 rounded-2xl bg-gradient-to-tr from-cyan-600 to-blue-400 flex items-center justify-center text-3xl shadow-lg mb-3">⚡</div>
+            <h3 class="font-display text-xl font-bold text-white">Sasha</h3>
+            <span class="text-xs font-semibold text-cyan-400">La Exploradora Silvestre</span>
+            <p class="text-xs text-slate-400 mt-2">Ágil, rápida y veloz. Capaz de sortear terrenos difíciles, saltar obstáculos contaminados y detectar basura oculta con su visor óptico.</p>
+            <div class="mt-4 space-y-2">
+              <div>
+                <div class="flex justify-between text-[11px] font-semibold text-slate-300"><span>Capacidad de Carga</span> <span>75%</span></div>
+                <div class="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden mt-0.5"><div class="h-full bg-emerald-400 w-[75%]"></div></div>
+              </div>
+              <div>
+                <div class="flex justify-between text-[11px] font-semibold text-slate-300"><span>Fuerza de Combate</span> <span>78%</span></div>
+                <div class="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden mt-0.5"><div class="h-full bg-amber-400 w-[78%]"></div></div>
+              </div>
+              <div>
+                <div class="flex justify-between text-[11px] font-semibold text-slate-300"><span>Velocidad de Movimiento</span> <span>96%</span></div>
+                <div class="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden mt-0.5"><div class="h-full bg-cyan-400 w-[96%]"></div></div>
+              </div>
+            </div>
+          </div>
+          <button id="btn-select-sasha" onclick="TrashGame.UI.selectCharacter('sasha')" class="mt-6 w-full py-2.5 rounded-xl bg-slate-800 hover:bg-cyan-500 text-white hover:text-slate-950 font-bold text-xs uppercase tracking-wider transition-colors shadow-md">Seleccionar a Sasha</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================== -->
+  <!-- MODAL: MODO HISTORIA (SELECTOR DE MAPAS 3D) -->
+  <!-- ========================================== -->
+  <div id="modal-historia" class="modal-backdrop hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md">
+    <div class="modal-card w-full max-w-4xl glass-panel rounded-3xl p-6 md:p-8 relative border border-white/10 max-h-[92vh] overflow-y-auto">
+      <button onclick="TrashGame.UI.closeModal('modal-historia')" class="absolute top-5 right-5 w-9 h-9 rounded-xl bg-slate-800/80 hover:bg-slate-700 text-slate-400 hover:text-white flex items-center justify-center transition-colors">✕</button>
+
+      <div class="mb-6">
+        <span class="text-xs font-bold tracking-widest uppercase text-emerald-400 bg-emerald-950/80 px-3 py-1 rounded-full border border-emerald-500/30">Modo Campaña</span>
+        <h2 class="font-display text-2xl md:text-3xl font-bold text-white mt-1">Modo Historia: Limpieza 3D</h2>
+        <p class="text-xs text-slate-400 mt-1">Elige un entorno 3D. Controla al héroe en tercera persona con W, A, S, D y ratón para limpiar los residuos y purificar el planeta.</p>
+      </div>
+
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <!-- Mapa 1: Playa -->
+        <div class="p-4 rounded-2xl bg-slate-900/90 border border-emerald-500/40 hover:border-emerald-400 transition-all flex flex-col justify-between">
+          <div>
+            <div class="w-full h-28 rounded-xl bg-gradient-to-br from-amber-600/40 via-cyan-800/40 to-slate-900 flex items-center justify-center text-4xl mb-3 border border-slate-700/50">🏖️</div>
+            <div class="text-[10px] text-emerald-400 font-bold uppercase tracking-wider">Nivel 1 • Costas</div>
+            <h4 class="font-display text-lg font-bold text-white">Playa Cristalina</h4>
+            <p class="text-xs text-slate-400 mt-1">Plásticos, redes y latas dispersas entre las dunas y olas.</p>
+            <div class="mt-3 flex items-center gap-2 text-[11px] text-amber-300"><span>🪙 +350</span> • <span>⭐ Rango Historia</span></div>
+          </div>
+          <button onclick="TrashGame.Main.prepareSession('story', 'playa')" class="mt-4 w-full py-2.5 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs rounded-xl shadow-lg shadow-emerald-500/20 transition-all">
+            ▶ Iniciar Limpieza
+          </button>
+        </div>
+
+        <!-- Mapa 2: Bosque -->
+        <div class="p-4 rounded-2xl bg-slate-900/90 border border-slate-700/60 hover:border-emerald-400 transition-all flex flex-col justify-between">
+          <div>
+            <div class="w-full h-28 rounded-xl bg-gradient-to-br from-emerald-800/40 via-green-900/40 to-slate-900 flex items-center justify-center text-4xl mb-3 border border-slate-700/50">🌲</div>
+            <div class="text-[10px] text-emerald-400 font-bold uppercase tracking-wider">Nivel 2 • Vegetación</div>
+            <h4 class="font-display text-lg font-bold text-white">Bosque Profundo</h4>
+            <p class="text-xs text-slate-400 mt-1">Chatarra y barriles de baterías ocultos entre árboles ancestrales.</p>
+            <div class="mt-3 flex items-center gap-2 text-[11px] text-amber-300"><span>🪙 +500</span> • <span>⭐ Rango Historia</span></div>
+          </div>
+          <button onclick="TrashGame.Main.prepareSession('story', 'bosque')" class="mt-4 w-full py-2.5 bg-slate-800 hover:bg-emerald-500 hover:text-slate-950 text-white font-bold text-xs rounded-xl transition-all">
+            ▶ Iniciar Limpieza
+          </button>
+        </div>
+
+        <!-- Mapa 3: Río -->
+        <div class="p-4 rounded-2xl bg-slate-900/90 border border-slate-700/60 hover:border-cyan-400 transition-all flex flex-col justify-between">
+          <div>
+            <div class="w-full h-28 rounded-xl bg-gradient-to-br from-blue-800/40 via-cyan-900/40 to-slate-900 flex items-center justify-center text-4xl mb-3 border border-slate-700/50">🌊</div>
+            <div class="text-[10px] text-cyan-400 font-bold uppercase tracking-wider">Nivel 3 • Aguas Dulces</div>
+            <h4 class="font-display text-lg font-bold text-white">Río Turbio</h4>
+            <p class="text-xs text-slate-400 mt-1">Vertidos químicos industriales acumulados en las orillas y puentes.</p>
+            <div class="mt-3 flex items-center gap-2 text-[11px] text-amber-300"><span>🪙 +750</span> • <span>⭐ Rango Historia</span></div>
+          </div>
+          <button onclick="TrashGame.Main.prepareSession('story', 'rio')" class="mt-4 w-full py-2.5 bg-slate-800 hover:bg-cyan-500 hover:text-slate-950 text-white font-bold text-xs rounded-xl transition-all">
+            ▶ Iniciar Limpieza
+          </button>
+        </div>
+
+        <!-- Mapa 4: Ciudad -->
+        <div class="p-4 rounded-2xl bg-slate-900/90 border border-slate-700/60 hover:border-amber-400 transition-all flex flex-col justify-between">
+          <div>
+            <div class="w-full h-28 rounded-xl bg-gradient-to-br from-purple-800/40 via-slate-800/40 to-slate-900 flex items-center justify-center text-4xl mb-3 border border-slate-700/50">🏙️</div>
+            <div class="text-[10px] text-amber-400 font-bold uppercase tracking-wider">Nivel 4 • Metrópolis</div>
+            <h4 class="font-display text-lg font-bold text-white">Ciudad Vertedero</h4>
+            <p class="text-xs text-slate-400 mt-1">Residuos electrónicos, pantallas rotas y montañas de basura urbana.</p>
+            <div class="mt-3 flex items-center gap-2 text-[11px] text-amber-300"><span>🪙 +1,200</span> • <span>⭐ Rango Historia</span></div>
+          </div>
+          <button onclick="TrashGame.Main.prepareSession('story', 'ciudad')" class="mt-4 w-full py-2.5 bg-slate-800 hover:bg-amber-500 hover:text-slate-950 text-white font-bold text-xs rounded-xl transition-all">
+            ▶ Iniciar Limpieza
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================== -->
+  <!-- MODAL: MODO AVENTURA (BOSS FIGHT)          -->
+  <!-- ========================================== -->
+  <div id="modal-aventura" class="modal-backdrop hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md">
+    <div class="modal-card w-full max-w-3xl glass-panel rounded-3xl p-6 md:p-8 relative border border-white/10 max-h-[92vh] overflow-y-auto">
+      <button onclick="TrashGame.UI.closeModal('modal-aventura')" class="absolute top-5 right-5 w-9 h-9 rounded-xl bg-slate-800/80 hover:bg-slate-700 text-slate-400 hover:text-white flex items-center justify-center transition-colors">✕</button>
+
+      <div class="mb-6">
+        <span class="text-xs font-bold tracking-widest uppercase text-purple-400 bg-purple-950/80 px-3 py-1 rounded-full border border-purple-500/30">Modo Acción & Combate 3D</span>
+        <h2 class="font-display text-2xl md:text-3xl font-bold text-white mt-1">Modo Aventura: Titanes de Basura</h2>
+        <p class="text-xs text-slate-400 mt-1">Entra a la arena 3D. Emplea tus armas de plasma ecológico, esquiva los pisotones sísmicos del monstruo y salva el planeta.</p>
+      </div>
+
+      <div class="space-y-4">
+        <div class="p-5 rounded-2xl bg-slate-900/90 border-2 border-purple-500/40 flex flex-col sm:flex-row items-center gap-5">
+          <div class="w-24 h-24 rounded-2xl bg-gradient-to-tr from-purple-950 to-pink-950 flex items-center justify-center text-5xl border border-purple-500/50 flex-shrink-0 shadow-lg">
+            👹
+          </div>
+          <div class="flex-1 text-center sm:text-left">
+            <div class="flex items-center justify-center sm:justify-start gap-2">
+              <h3 class="font-display text-xl font-bold text-white">Gólem de Neumáticos y Plástico</h3>
+              <span class="text-[10px] bg-red-950 text-red-300 border border-red-500/40 px-2 py-0.5 rounded font-bold">Boss 3D</span>
+            </div>
+            <p class="text-xs text-slate-400 mt-1">Coloso de 6 metros hecho con llantas fundidas y chatarra corrosiva. Golpea el suelo provocando ondas expansivas de choque.</p>
+            <div class="mt-2 text-xs text-purple-300 font-semibold flex items-center justify-center sm:justify-start gap-2">
+              <span>🪙 +1,000 Monedas</span> • <span>⭐ Rango Aventura</span>
+            </div>
+          </div>
+          <button onclick="TrashGame.Main.prepareSession('boss', 'golem')" class="px-6 py-3 bg-gradient-to-r from-purple-600 to-pink-500 hover:from-purple-500 hover:to-pink-400 text-white font-bold text-xs uppercase tracking-wider rounded-xl shadow-lg shadow-purple-600/30 transition-all flex-shrink-0">
+            ⚔️ Desafiar Titán
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="modal-difficulty" class="modal-backdrop hidden fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-950/85 backdrop-blur-md">
+    <div class="modal-card w-full max-w-4xl glass-panel rounded-3xl p-6 md:p-8 relative border border-emerald-500/30">
+      <button onclick="TrashGame.Main.cancelDifficulty()" class="absolute top-4 right-4 w-9 h-9 rounded-xl bg-slate-800/80 hover:bg-slate-700 text-slate-300 flex items-center justify-center" aria-label="Cancelar">✕</button>
+      <div class="text-center mb-6">
+        <span class="text-[10px] font-black tracking-[.22em] text-emerald-300 uppercase">Configura tu misión</span>
+        <h2 class="font-display text-2xl md:text-3xl font-black text-white mt-1">Elige la dificultad</h2>
+        <p class="text-xs text-slate-400 mt-2">La elección cambia los residuos, la cantidad de monstruos y la resistencia de los jefes.</p>
+      </div>
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+        <button onclick="TrashGame.Main.chooseDifficulty('easy')" class="difficulty-choice border border-emerald-500/35 hover:border-emerald-300 bg-emerald-950/35 hover:bg-emerald-900/50 rounded-2xl p-5 text-left transition-all">
+          <span class="text-3xl">🌱</span><h3 class="font-display text-xl font-black text-emerald-200 mt-3">Fácil</h3>
+          <p class="text-xs text-slate-300 mt-2">Menos basura, enemigos más débiles y un Titán con menos vida.</p>
+          <span class="inline-block mt-4 text-[9px] uppercase tracking-widest font-black text-emerald-300">Para explorar</span>
+        </button>
+        <button onclick="TrashGame.Main.chooseDifficulty('medium')" class="difficulty-choice border border-cyan-500/35 hover:border-cyan-300 bg-cyan-950/35 hover:bg-cyan-900/50 rounded-2xl p-5 text-left transition-all">
+          <span class="text-3xl">⚖️</span><h3 class="font-display text-xl font-black text-cyan-200 mt-3">Medio</h3>
+          <p class="text-xs text-slate-300 mt-2">Cantidad equilibrada de residuos y encuentros de dificultad normal.</p>
+          <span class="inline-block mt-4 text-[9px] uppercase tracking-widest font-black text-cyan-300">Recomendado</span>
+        </button>
+        <button onclick="TrashGame.Main.chooseDifficulty('hard')" class="difficulty-choice border border-rose-500/35 hover:border-rose-300 bg-rose-950/35 hover:bg-rose-900/50 rounded-2xl p-5 text-left transition-all">
+          <span class="text-3xl">☠️</span><h3 class="font-display text-xl font-black text-rose-200 mt-3">Difícil</h3>
+          <p class="text-xs text-slate-300 mt-2">Más residuos y monstruos; los jefes tienen mucha más vida y pegan más fuerte.</p>
+          <span class="inline-block mt-4 text-[9px] uppercase tracking-widest font-black text-rose-300">Desafío experto</span>
+        </button>
+      </div>
+      <p class="text-center text-[10px] text-slate-500 mt-5">El modo Combate Titán mostrará su historia después de elegir.</p>
+    </div>
+  </div>
+
+  <div id="modal-recycling-shop" class="modal-backdrop hidden fixed inset-0 z-[60] flex items-center justify-center p-3 md:p-6 bg-slate-950/90 backdrop-blur-md">
+    <div class="modal-card w-full max-w-5xl max-h-[94vh] overflow-y-auto glass-panel rounded-3xl p-5 md:p-7 relative border border-emerald-500/40">
+      <button onclick="TrashGame.UI.closeModal('modal-recycling-shop')" class="absolute top-4 right-4 w-9 h-9 rounded-xl bg-slate-800/80 hover:bg-slate-700 text-slate-300 flex items-center justify-center" aria-label="Cerrar tienda">✕</button>
+      <div class="pr-12 mb-5">
+        <span class="text-[10px] font-black tracking-[.22em] text-emerald-300 uppercase">Punto limpio · Armería</span>
+        <h2 class="font-display text-2xl md:text-3xl font-black text-white mt-1">Estación de reciclaje</h2>
+        <p class="text-xs text-slate-400 mt-1">Deposita lo que llevas en la mochila para ganar monedas. Úsalas para mejorar tu equipo.</p>
+      </div>
+      <div class="grid grid-cols-1 md:grid-cols-[1fr_auto] gap-3 mb-6">
+        <div class="rounded-2xl border border-emerald-500/30 bg-emerald-950/35 p-4 flex flex-wrap items-center justify-between gap-3">
+          <div><div class="text-[9px] uppercase tracking-widest text-emerald-300 font-black">Mochila de residuos</div><div class="text-sm text-white mt-1"><strong id="shop-pending-count">0</strong> piezas · capacidad <strong id="shop-pending-capacity">16</strong></div><div class="text-xs text-amber-300 mt-1">Valor del depósito: <strong id="shop-pending-value">0</strong> 🪙</div></div>
+          <button onclick="TrashGame.Shop.deposit()" id="shop-deposit-button" class="px-5 py-3 rounded-xl bg-emerald-400 hover:bg-emerald-300 text-slate-950 font-black text-xs uppercase tracking-wider disabled:opacity-40 disabled:cursor-not-allowed">♻️ Depositar basura</button>
+        </div>
+        <div class="rounded-2xl border border-amber-500/30 bg-amber-950/25 p-4 min-w-40"><div class="text-[9px] uppercase tracking-widest text-amber-300 font-black">Monedas disponibles</div><div class="font-display font-black text-2xl text-amber-200 mt-2"><span id="shop-coins">0</span> 🪙</div></div>
+      </div>
+      <div class="grid grid-cols-1 lg:grid-cols-[.78fr_1.22fr] gap-5">
+        <section><h3 class="font-display text-lg font-black text-white mb-3">Mejoras de recolección</h3><div id="shop-upgrade-grid" class="grid grid-cols-1 gap-3"></div></section>
+        <section><div class="flex items-end justify-between gap-3 mb-3"><div><h3 class="font-display text-lg font-black text-white">Herramientas y armas</h3><p class="text-[10px] text-slate-400">Las armas compradas también aumentan el daño contra monstruos y el Titán.</p></div></div><div id="shop-weapons-grid" class="grid grid-cols-1 sm:grid-cols-2 gap-2.5"></div></section>
+      </div>
+    </div>
+  </div>
+
+  <!-- INTRO NARRATIVA: COMBATE CONTRA EL TITÁN -->
+  <section id="titan-story" class="titan-story hidden" aria-label="Historia de Trash Man" aria-modal="true" role="dialog">
+    <div class="titan-story__frame">
+      <button class="titan-story__close" type="button" onclick="TrashGame.TitanStory.close()" aria-label="Volver al menú">✕</button>
+      <div class="titan-story__art-wrap">
+        <img id="titan-story-art" class="titan-story__art" src="" alt="Ilustración de la historia de Trash Man">
+        <div class="titan-story__art-shade"></div>
+        <div class="titan-story__chapter"><span id="titan-story-kicker"></span><span id="titan-story-count"></span></div>
+      </div>
+      <div class="titan-story__copy">
+        <div class="titan-story__eyebrow"><span class="titan-story__pulse"></span> ARCHIVOS ECO · CRÓNICA DEL TITÁN</div>
+        <h2 id="titan-story-title" class="titan-story__title"></h2>
+        <p id="titan-story-text" class="titan-story__text"></p>
+        <div class="titan-story__footer">
+          <div id="titan-story-dots" class="titan-story__dots" aria-label="Progreso de la historia"></div>
+          <button id="titan-story-next" type="button" class="titan-story__next" onclick="TrashGame.TitanStory.next()">
+            <span id="titan-story-next-label">Continuar</span><span aria-hidden="true">→</span>
+          </button>
+        </div>
+        <div class="titan-story__hint">Pulsa <kbd>ENTER</kbd> para continuar · <button type="button" onclick="TrashGame.TitanStory.skip()">Saltar historia</button></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========================================== -->
+  <!-- MODAL: MULTIJUGADOR (SALAS)                -->
+  <!-- ========================================== -->
+  <div id="modal-multijugador" class="modal-backdrop hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md">
+    <div class="modal-card w-full max-w-3xl glass-panel rounded-3xl p-6 md:p-8 relative border border-white/10 max-h-[92vh] overflow-y-auto">
+      <button onclick="TrashGame.UI.closeModal('modal-multijugador')" class="absolute top-5 right-5 w-9 h-9 rounded-xl bg-slate-800/80 hover:bg-slate-700 text-slate-400 hover:text-white flex items-center justify-center transition-colors">✕</button>
+
+      <div class="mb-6">
+        <span class="text-xs font-bold tracking-widest uppercase text-cyan-400 bg-cyan-950/80 px-3 py-1 rounded-full border border-cyan-500/30">Sala global · hasta 16 jugadores</span>
+        <h2 class="font-display text-2xl md:text-3xl font-bold text-white mt-1">Sala multijugador compartida</h2>
+    <p class="text-xs text-slate-400 mt-1">Crea la sala única, comparte el código y limpia el mapa junto con quienes se unan.</p>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <!-- Crear Sala -->
+        <div class="p-5 rounded-2xl bg-slate-900/80 border border-cyan-500/30 flex flex-col justify-between">
+          <div>
+            <h3 class="font-display text-lg font-bold text-cyan-400 flex items-center gap-2">🌐 Sala global de limpieza</h3>
+            <p class="text-xs text-slate-400 mt-1">Una sola sala compartida, hasta 16 jugadores. Copia el código o envía el enlace.</p>
+
+            <div class="mt-4 p-3 rounded-xl bg-slate-950 border border-slate-800 flex items-center justify-between">
+              <div>
+                <div class="text-[10px] text-slate-500 uppercase font-bold">Código de Sala:</div>
+                <div id="generated-room-code" class="font-display text-xl font-black text-amber-400 tracking-widest">SIN SALA</div>
+              </div>
+              <button onclick="TrashGame.OnlineRoom.copyInvite()" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs text-slate-300 font-semibold transition-colors">🔗 Copiar enlace</button>
+            </div>
+            <div id="online-room-count" class="mt-2 text-[10px] font-bold text-cyan-300">0/16 conectados</div>
+            <div id="online-room-players" class="mt-1 min-h-8 text-[10px] leading-relaxed text-slate-400">Crea una sala para invitar al equipo.</div>
+
+            <div class="mt-4 space-y-3">
+              <div>
+                <label class="text-xs font-semibold text-slate-300">Modo de Sala:</label>
+                <select id="room-mode-select" class="w-full mt-1 bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-xs font-semibold text-white focus:outline-none">
+                  <option value="playa">Limpieza Co-op: Playa Cristalina</option>
+                  <option value="bosque">Limpieza Co-op: Bosque Profundo</option>
+                  <option value="rio">Limpieza Co-op: Río Turbio</option>
+                  <option value="ciudad">Limpieza Co-op: Ciudad Vertedero</option>
+                </select>
+              </div>
+
+            </div>
+          </div>
+
+          <button onclick="TrashGame.OnlineRoom.createThenPrepare(document.getElementById('room-mode-select').value)" class="mt-5 w-full py-2.5 bg-slate-800 hover:bg-slate-700 text-cyan-200 font-display font-bold rounded-xl transition-all">
+            🌐 Crear la sala global
+          </button>
+          <button onclick="TrashGame.OnlineRoom.startRoom(document.getElementById('room-mode-select').value)" class="mt-2 w-full py-3 bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-400 hover:to-blue-400 text-slate-950 font-display font-bold rounded-xl transition-all shadow-lg shadow-cyan-500/20">
+            ▶ Iniciar cuando llegue el equipo
+          </button>
+        </div>
+
+        <!-- Unirse a Sala -->
+        <div class="p-5 rounded-2xl bg-slate-900/80 border border-slate-800 flex flex-col justify-between">
+          <div>
+            <h3 class="font-display text-lg font-bold text-white flex items-center gap-2">🔑 Unirse con Código</h3>
+            <p class="text-xs text-slate-400 mt-1">Únete con el código que te compartió el anfitrión.</p>
+
+            <div class="mt-4">
+              <input id="input-join-code" type="text" maxlength="7" placeholder="EJ: TM-4821" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-4 py-3 text-center uppercase tracking-widest font-display text-lg font-bold text-amber-300 focus:outline-none focus:border-cyan-400">
+            </div>
+
+            <div class="mt-4 min-h-16 rounded-xl border border-slate-800 bg-slate-950/70 p-3 text-[10px] leading-relaxed text-slate-400">
+              Solo aparecerá la sala global que esté abierta ahora. Cuando el anfitrión inicie, entrarás al mismo mapa y partida.
+            </div>
+          </div>
+
+          <button onclick="TrashGame.OnlineRoom.join(document.getElementById('input-join-code').value)" class="mt-6 w-full py-3 bg-slate-800 hover:bg-slate-700 text-white font-display font-bold rounded-xl transition-all">
+            Unirse a Partida
+          </button>
+        </div>
+      </div>
+      <p id="online-room-status" class="mt-4 text-[10px] font-semibold text-slate-400" aria-live="polite">La sala online necesita el servidor de salas del proyecto.</p>
+    </div>
+  </div>
+
+  <!-- ========================================== -->
+  <!-- MODAL: RUEDA DE EMOTES FREE FIRE           -->
+  <!-- ========================================== -->
+  <div id="modal-emotes" class="modal-backdrop hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/85 backdrop-blur-md">
+    <div class="modal-card w-full max-w-4xl glass-panel rounded-3xl p-6 md:p-8 relative border border-amber-500/30 max-h-[92vh] overflow-y-auto shadow-[0_0_50px_rgba(245,158,11,0.15)]">
+      <button onclick="TrashGame.UI.closeModal('modal-emotes')" class="absolute top-5 right-5 w-9 h-9 rounded-xl bg-slate-800/80 hover:bg-slate-700 text-slate-400 hover:text-white flex items-center justify-center transition-colors">✕</button>
+
+      <!-- Header -->
+      <div class="flex items-center gap-3.5 mb-6 pb-4 border-b border-slate-800">
+        <div class="w-14 h-14 rounded-2xl bg-gradient-to-tr from-amber-500 via-orange-500 to-rose-500 p-0.5 shadow-lg shadow-amber-500/40 flex items-center justify-center">
+          <div class="w-full h-full bg-slate-950 rounded-[14px] flex items-center justify-center text-2xl animate-bounce-subtle">
+            🎭
+          </div>
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <span class="text-[10px] uppercase font-black tracking-[0.2em] text-amber-400 bg-amber-950/90 px-2.5 py-0.5 rounded-full border border-amber-500/40 font-hud">
+              FREE FIRE BATTLE ROYALE
+            </span>
+            <span class="text-[10px] uppercase font-black tracking-widest text-emerald-400 bg-emerald-950/80 px-2 py-0.5 rounded-full border border-emerald-500/30 font-hud">
+              ANIMACIONES 3D
+            </span>
+          </div>
+          <h2 class="font-tech text-2xl md:text-3xl font-black text-white mt-1 tracking-wide">
+            COLECCIÓN DE EMOTES ÉPICOS
+          </h2>
+          <p class="text-xs text-slate-400 font-medium mt-0.5">
+            Haz clic en cualquier emote para que tu Eco-Guardián lo ejecute en el lobby 3D en tiempo real con sonido y VFX.
+          </p>
+        </div>
+      </div>
+
+      <!-- Emotes Grid (6 Free Fire style emotes) -->
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        
+        <!-- 1. Danza Free Fire -->
+        <div class="p-4 rounded-2xl bg-slate-900/90 border border-purple-500/40 hover:border-purple-400 transition-all flex flex-col justify-between group shadow-lg hover:shadow-purple-500/20">
+          <div>
+            <div class="flex items-center justify-between mb-2">
+              <span class="text-3xl p-2 rounded-xl bg-purple-950/80 border border-purple-500/30 group-hover:scale-110 transition-transform">💃</span>
+              <span class="text-[9px] font-black uppercase tracking-wider text-purple-300 bg-purple-950/90 px-2 py-0.5 rounded-full border border-purple-500/40 font-hud">ÉPICO • LOOP</span>
+            </div>
+            <h3 class="font-tech text-base font-bold text-white group-hover:text-purple-300 transition-colors">Danza Free Fire</h3>
+            <p class="text-xs text-slate-400 mt-1">El baile rítmico y viral de la victoria con cadencia de cadera y movimiento de brazos.</p>
+          </div>
+          <button onclick="TrashGame.Emotes.trigger('dance'); TrashGame.UI.closeModal('modal-emotes')" class="mt-4 w-full py-2.5 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-hud font-black text-xs tracking-wider transition-all shadow-md shadow-purple-600/30 flex items-center justify-center gap-1.5">
+            <span>💃</span> ¡BAILAR EN LOBBY!
+          </button>
+        </div>
+
+        <!-- 2. Patada Dragón -->
+        <div class="p-4 rounded-2xl bg-slate-900/90 border border-amber-500/40 hover:border-amber-400 transition-all flex flex-col justify-between group shadow-lg hover:shadow-amber-500/20">
+          <div>
+            <div class="flex items-center justify-between mb-2">
+              <span class="text-3xl p-2 rounded-xl bg-amber-950/80 border border-amber-500/30 group-hover:scale-110 transition-transform">🥋</span>
+              <span class="text-[9px] font-black uppercase tracking-wider text-amber-300 bg-amber-950/90 px-2 py-0.5 rounded-full border border-amber-500/40 font-hud">LEGENDARIO</span>
+            </div>
+            <h3 class="font-tech text-base font-bold text-white group-hover:text-amber-300 transition-colors">Patada Dragón</h3>
+            <p class="text-xs text-slate-400 mt-1">Salto acrobático en el aire, giro marcial de 360° con patada ninja y caída en pose de guardia.</p>
+          </div>
+          <button onclick="TrashGame.Emotes.trigger('kungfu'); TrashGame.UI.closeModal('modal-emotes')" class="mt-4 w-full py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-400 hover:to-orange-500 text-slate-950 font-hud font-black text-xs tracking-wider transition-all shadow-md shadow-amber-500/30 flex items-center justify-center gap-1.5">
+            <span>🥋</span> ¡DAR PATADA!
+          </button>
+        </div>
+
+        <!-- 3. Poder de Titán -->
+        <div class="p-4 rounded-2xl bg-slate-900/90 border border-cyan-500/40 hover:border-cyan-400 transition-all flex flex-col justify-between group shadow-lg hover:shadow-cyan-500/20">
+          <div>
+            <div class="flex items-center justify-between mb-2">
+              <span class="text-3xl p-2 rounded-xl bg-cyan-950/80 border border-cyan-500/30 group-hover:scale-110 transition-transform">💪</span>
+              <span class="text-[9px] font-black uppercase tracking-wider text-cyan-300 bg-cyan-950/90 px-2 py-0.5 rounded-full border border-cyan-500/40 font-hud">RARO</span>
+            </div>
+            <h3 class="font-tech text-base font-bold text-white group-hover:text-cyan-300 transition-colors">Poder de Titán</h3>
+            <p class="text-xs text-slate-400 mt-1">Carga de energía eco con pisada pesada y flexión doble de bíceps titánico temblando de poder.</p>
+          </div>
+          <button onclick="TrashGame.Emotes.trigger('flex'); TrashGame.UI.closeModal('modal-emotes')" class="mt-4 w-full py-2.5 rounded-xl bg-gradient-to-r from-cyan-600 to-teal-600 hover:from-cyan-500 hover:to-teal-500 text-white font-hud font-black text-xs tracking-wider transition-all shadow-md shadow-cyan-600/30 flex items-center justify-center gap-1.5">
+            <span>💪</span> ¡MOSTRAR FUERZA!
+          </button>
+        </div>
+
+        <!-- 4. Honor de Élite (Saludo) -->
+        <div class="p-4 rounded-2xl bg-slate-900/90 border border-emerald-500/40 hover:border-emerald-400 transition-all flex flex-col justify-between group shadow-lg hover:shadow-emerald-500/20">
+          <div>
+            <div class="flex items-center justify-between mb-2">
+              <span class="text-3xl p-2 rounded-xl bg-emerald-950/80 border border-emerald-500/30 group-hover:scale-110 transition-transform">🫡</span>
+              <span class="text-[9px] font-black uppercase tracking-wider text-emerald-300 bg-emerald-950/90 px-2 py-0.5 rounded-full border border-emerald-500/40 font-hud">MILITAR</span>
+            </div>
+            <h3 class="font-tech text-base font-bold text-white group-hover:text-emerald-300 transition-colors">Honor de Élite</h3>
+            <p class="text-xs text-slate-400 mt-1">Firmeza militar perfecta, mirada al frente y saludo marcial a la visera del casco táctico.</p>
+          </div>
+          <button onclick="TrashGame.Emotes.trigger('salute'); TrashGame.UI.closeModal('modal-emotes')" class="mt-4 w-full py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-500 hover:to-green-500 text-white font-hud font-black text-xs tracking-wider transition-all shadow-md shadow-emerald-600/30 flex items-center justify-center gap-1.5">
+            <span>🫡</span> ¡SALUDAR!
+          </button>
+        </div>
+
+        <!-- 5. Risa Burlona -->
+        <div class="p-4 rounded-2xl bg-slate-900/90 border border-yellow-500/40 hover:border-yellow-400 transition-all flex flex-col justify-between group shadow-lg hover:shadow-yellow-500/20">
+          <div>
+            <div class="flex items-center justify-between mb-2">
+              <span class="text-3xl p-2 rounded-xl bg-yellow-950/80 border border-yellow-500/30 group-hover:scale-110 transition-transform">🤣</span>
+              <span class="text-[9px] font-black uppercase tracking-wider text-yellow-300 bg-yellow-950/90 px-2 py-0.5 rounded-full border border-yellow-500/40 font-hud">TAUNT</span>
+            </div>
+            <h3 class="font-tech text-base font-bold text-white group-hover:text-yellow-300 transition-colors">Risa Burlona</h3>
+            <p class="text-xs text-slate-400 mt-1">Risa incontenible sosteniéndose el abdomen y apuntando hacia el rival para intimidarlo.</p>
+          </div>
+          <button onclick="TrashGame.Emotes.trigger('laugh'); TrashGame.UI.closeModal('modal-emotes')" class="mt-4 w-full py-2.5 rounded-xl bg-gradient-to-r from-yellow-500 to-amber-600 hover:from-yellow-400 hover:to-amber-500 text-slate-950 font-hud font-black text-xs tracking-wider transition-all shadow-md shadow-yellow-500/30 flex items-center justify-center gap-1.5">
+            <span>🤣</span> ¡REÍRSE DEL RIVAL!
+          </button>
+        </div>
+
+        <!-- 6. Aura de Superhéroe -->
+        <div class="p-4 rounded-2xl bg-slate-900/90 border border-rose-500/50 hover:border-rose-400 transition-all flex flex-col justify-between group shadow-lg hover:shadow-rose-500/25">
+          <div>
+            <div class="flex items-center justify-between mb-2">
+              <span class="text-3xl p-2 rounded-xl bg-rose-950/80 border border-rose-500/30 group-hover:scale-110 transition-transform">⚡</span>
+              <span class="text-[9px] font-black uppercase tracking-wider text-rose-300 bg-rose-950/90 px-2 py-0.5 rounded-full border border-rose-500/40 font-hud">LEGENDARIO VFX</span>
+            </div>
+            <h3 class="font-tech text-base font-bold text-white group-hover:text-rose-300 transition-colors">Aura de Superhéroe</h3>
+            <p class="text-xs text-slate-400 mt-1">Levitación mística, despliegue de alas/brazos y aterrizaje de 3 puntos con explosión dorada.</p>
+          </div>
+          <button onclick="TrashGame.Emotes.trigger('legendary'); TrashGame.UI.closeModal('modal-emotes')" class="mt-4 w-full py-2.5 rounded-xl bg-gradient-to-r from-rose-500 via-pink-600 to-amber-500 hover:from-rose-400 hover:to-amber-400 text-white font-hud font-black text-xs tracking-wider transition-all shadow-md shadow-rose-500/40 flex items-center justify-center gap-1.5">
+            <span>⚡</span> ¡POSE HEROICA!
+          </button>
+        </div>
+
+      </div>
+
+      <!-- Stop Emote Bar -->
+      <div class="mt-6 pt-4 border-t border-slate-800 flex items-center justify-between">
+        <div class="text-xs text-slate-400 flex items-center gap-2">
+          <span>💡</span> Los emotes se pueden reproducir tantas veces como quieras en el lobby.
+        </div>
+        <button onclick="TrashGame.Emotes.stop(); TrashGame.UI.closeModal('modal-emotes'); TrashGame.UI.showToast('Emote detenido', 'info')" class="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-hud font-bold text-xs flex items-center gap-1.5 transition-colors">
+          <span>⏹️</span> Detener Emote Actual
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification Container -->
+  <div id="toast-container" class="fixed bottom-20 right-6 z-50 flex flex-col gap-2 pointer-events-none"></div>
+
+  <!-- ========================================== -->
+  <!-- MODULAR JAVASCRIPT ARCHITECTURE SCRIPTS    -->
+  <!-- ========================================== -->
+  <!-- 1. Data Store & Catalogs -->
+  <script src="js/data/state.js"></script>
+  <script src="js/data/items.js"></script>
+  <script src="js/data/mapsData.js"></script>
+
+  <!-- 2. Engine Subsystems, 3D Asset Loader & Procedural PBR Textures -->
+  <script src="js/engine/graphics.js"></script>
+  <script src="js/engine/humans.js"></script>
+  <script src="js/engine/textures.js"></script>
+  <script src="js/engine/assetLoader.js"></script>
+  <script src="js/engine/sound.js"></script>
+  <script src="js/engine/character.js"></script>
+  <script src="js/engine/camera.js"></script>
+  <script src="js/engine/emotes.js"></script>
+  <script src="js/engine/inventoryPreview.js"></script>
+  <script src="js/engine/petPreview.js"></script>
+
+  <!-- 3. World & Physics -->
+  <script src="js/world/worldLife.js"></script>
+  <script src="js/world/trash.js"></script>
+  <script src="js/world/monsters.js"></script>
+  <script src="js/world/maps.js"></script>
+  <script src="js/world/boss.js"></script>
+
+  <!-- 4. Game Modes -->
+  <script src="js/modes/storyMode.js"></script>
+  <script src="js/modes/adventureMode.js"></script>
+  <script src="js/modes/titanStory.js"></script>
+  <script src="js/modes/multiplayerMode.js"></script>
+
+  <!-- 5. UI & Minigames -->
+  <script src="js/ui/roulette.js"></script>
+  <script src="js/ui/uiController.js"></script>
+  <script src="js/ui/mobileControls.js"></script>
+  <script src="js/ui/recyclingShop.js"></script>
+
+  <!-- 6. Main Orchestrator & Loop -->
+  <script src="js/main.js"></script>
+  <script src="js/modes/onlineRoom.js"></script>
+  <script src="js/engine/gamepad.js"></script>
+
+  <!-- ========================================== -->
+  <!-- SPLASH SCREEN CONTROLLER                   -->
+  <!-- ========================================== -->
+  <script>
+  (function() {
+    const splash  = document.getElementById('splash-screen');
+    const bar     = document.getElementById('splash-bar');
+    const pct     = document.getElementById('splash-pct');
+    const label   = document.getElementById('splash-label');
+
+    if (!splash) return;
+
+    // Loading message sequence
+    const messages = [
+      'Iniciando motor 3D…',
+      'Cargando texturas PBR…',
+      'Generando mapas del mundo…',
+      'Spawneando fauna y tráfico…',
+      'Compilando shaders…',
+      '¡Listo para limpiar el planeta!'
+    ];
+
+    let progress = 0;
+    let msgIdx   = 0;
+
+    function setProgress(p) {
+      progress = Math.min(100, p);
+      bar.style.width  = progress + '%';
+      pct.textContent  = Math.round(progress) + ' %';
+      // Advance message at certain thresholds
+      const threshold  = Math.floor(progress / (100 / messages.length));
+      if (threshold < messages.length && msgIdx !== threshold) {
+        msgIdx = threshold;
+        label.textContent = messages[msgIdx];
+      }
+    }
+
+    // Simulate realistic load progression over ~16 seconds
+    const steps = [
+      { target:  5,  delay:  600  },
+      { target: 14,  delay: 1800  },
+      { target: 25,  delay: 3200  },
+      { target: 38,  delay: 5000  },
+      { target: 52,  delay: 7000  },
+      { target: 65,  delay: 9000  },
+      { target: 76,  delay: 11000 },
+      { target: 85,  delay: 12800 },
+      { target: 92,  delay: 14200 },
+      { target: 96,  delay: 15200 }
+    ];
+
+    steps.forEach(s => {
+      setTimeout(() => setProgress(s.target), s.delay);
+    });
+
+    // After 16 s finish at 100 % and fade out
+    function finishSplash() {
+      setProgress(100);
+      label.textContent = '¡Listo para limpiar el planeta!';
+      setTimeout(() => {
+        splash.style.transition = 'opacity 0.9s ease';
+        splash.style.opacity    = '0';
+        setTimeout(() => { splash.style.display = 'none'; }, 950);
+      }, 600);
+    }
+
+    // Always wait the full 16 s regardless of actual load time
+    setTimeout(finishSplash, 16000);
+  })();
+  </script>
+
+</body>
+</html>

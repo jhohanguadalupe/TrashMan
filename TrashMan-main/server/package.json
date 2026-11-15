@@ -1,0 +1,9 @@
+{
+  "name": "trash-man-room-server",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Signalling and state relay for Trash Man's shared cleanup room",
+  "main": "room-server.js",
+  "scripts": { "start": "node room-server.js" },
+  "dependencies": { "ws": "^8.18.0" }
+}

@@ -1,0 +1,11 @@
+<!doctype html><html lang="es"><meta charset="utf-8"><title>Prueba de mando</title>
+<body style="font:14px system-ui;background:#0f172a;color:#e2e8f0;padding:20px">
+<h2>🎮 Prueba de mando - Trash Man</h2>
+<p>Conecta el mando y presiona cualquier boton. Este archivo carga <code>gamepad.js</code> solo para ver los valores.</p>
+<pre id="o" style="background:#020617;padding:12px;border-radius:8px">Esperando mando…</pre>
+<button onclick="TrashGame.Gamepad.rumble(1,1,400)">Probar vibracion</button>
+<script src="../../js/engine/gamepad.js"></script>
+<script>
+setInterval(()=>{const g=TrashGame.Gamepad;
+ document.getElementById('o').textContent = g.connected ? 'Tipo: '+g.type+'\n'+JSON.stringify(g.state,null,1) : 'Esperando mando… (presiona un boton)';},80);
+</script></body></html>

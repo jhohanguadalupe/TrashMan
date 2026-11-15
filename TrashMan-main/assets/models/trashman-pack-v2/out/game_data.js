@@ -1,0 +1,33 @@
+// Datos de ejemplo para el juego (ajusta los numeros a tu balance)
+window.TM_MONSTER_DATA = [
+  {id:"monstruo_n1_playa_t1_cangrejo_lata", nombre:"Cangrejo Lata", mapa:"Playa", nivel:1, tier:1, hp:40, dano:5, velocidad:1.8, evolucionaA:"monstruo_n1_playa_t2_cangrejo_botella", botin:"lata de aluminio"},
+  {id:"monstruo_n1_playa_t2_cangrejo_botella", nombre:"Cangrejo Botella", mapa:"Playa", nivel:1, tier:2, hp:90, dano:9, velocidad:1.5, evolucionaA:"monstruo_n1_playa_t3_cangrejo_colosal", botin:"botella PET"},
+  {id:"monstruo_n1_playa_t3_cangrejo_colosal", nombre:"Cangrejo Colosal (mini-jefe)", mapa:"Playa", nivel:1, tier:3, hp:220, dano:16, velocidad:1.1, evolucionaA:"", botin:"cofre de plastico"},
+  {id:"monstruo_n2_bosque_t1_moho_toxico", nombre:"Moho Toxico", mapa:"Bosque", nivel:2, tier:1, hp:60, dano:7, velocidad:1.4, evolucionaA:"monstruo_n2_bosque_t2_hongo_mutante", botin:"esporas"},
+  {id:"monstruo_n2_bosque_t2_hongo_mutante", nombre:"Hongo Mutante", mapa:"Bosque", nivel:2, tier:2, hp:130, dano:12, velocidad:1.2, evolucionaA:"monstruo_n2_bosque_t3_ancestro_neumatico", botin:"neumatico"},
+  {id:"monstruo_n2_bosque_t3_ancestro_neumatico", nombre:"Ancestro Neumatico (mini-jefe)", mapa:"Bosque", nivel:2, tier:3, hp:320, dano:20, velocidad:0.8, evolucionaA:"", botin:"semilla limpia"},
+  {id:"monstruo_n3_rio_t1_pez_lata", nombre:"Pez Lata", mapa:"Rio", nivel:3, tier:1, hp:80, dano:9, velocidad:2.0, evolucionaA:"monstruo_n3_rio_t2_anguila_petroleo", botin:"lata"},
+  {id:"monstruo_n3_rio_t2_anguila_petroleo", nombre:"Anguila de Petroleo", mapa:"Rio", nivel:3, tier:2, hp:170, dano:15, velocidad:1.6, evolucionaA:"monstruo_n3_rio_t3_hidra_petroleo", botin:"barril de aceite"},
+  {id:"monstruo_n3_rio_t3_hidra_petroleo", nombre:"Hidra de Petroleo (mini-jefe)", mapa:"Rio", nivel:3, tier:3, hp:420, dano:26, velocidad:1.0, evolucionaA:"", botin:"gota de agua pura"},
+  {id:"monstruo_n4_ciudad_t1_robot_chatarra", nombre:"Robot Chatarra", mapa:"Ciudad", nivel:4, tier:1, hp:110, dano:13, velocidad:1.3, evolucionaA:"monstruo_n4_ciudad_t2_mecha_reciclador", botin:"tornillos"},
+  {id:"monstruo_n4_ciudad_t2_mecha_reciclador", nombre:"Mecha Reciclador", mapa:"Ciudad", nivel:4, tier:2, hp:230, dano:20, velocidad:1.1, evolucionaA:"monstruo_n4_ciudad_t3_titan_chatarra", botin:"placa electronica"},
+  {id:"monstruo_n4_ciudad_t3_titan_chatarra", nombre:"Titan de Chatarra (mini-jefe)", mapa:"Ciudad", nivel:4, tier:3, hp:560, dano:32, velocidad:0.7, evolucionaA:"", botin:"nucleo de energia"},
+  {id:"boss_final_rey_vertedero", nombre:"Rey Vertedero (fase 1)", mapa:"Vertedero", nivel:5, tier:4, hp:1500, dano:40, velocidad:0.6, evolucionaA:"boss_final_rey_vertedero_furioso", botin:"corona de reciclaje"},
+  {id:"boss_final_rey_vertedero_furioso", nombre:"Rey Vertedero (fase 2 furioso)", mapa:"Vertedero", nivel:5, tier:5, hp:2000, dano:55, velocidad:0.9, evolucionaA:"", botin:"planeta limpio"},
+];
+window.TM_TOOL_DATA = [
+  {id:"herramienta_pala_t1_basica", nombre:"Pala basica", tier:1, capacidad:5, alcance:1.2, velocidad:1.0, uso:"Recoge basura suelta y arena"},
+  {id:"herramienta_pala_t2_reciclada", nombre:"Pala reciclada", tier:2, capacidad:10, alcance:1.4, velocidad:1.1, uso:"Recoge mas basura por golpe"},
+  {id:"herramienta_pala_t3_titanio", nombre:"Pala de titanio", tier:3, capacidad:20, alcance:1.6, velocidad:1.3, uso:"Recoge en area y corta basura enredada"},
+  {id:"herramienta_rastrillo_t1_basico", nombre:"Rastrillo basico", tier:1, capacidad:8, alcance:1.5, velocidad:1.0, uso:"Barre hojas y basura pequena en area"},
+  {id:"herramienta_rastrillo_t2_reciclado", nombre:"Rastrillo reciclado", tier:2, capacidad:14, alcance:1.7, velocidad:1.1, uso:"Area de barrido mas grande"},
+  {id:"herramienta_rastrillo_t3_titanio", nombre:"Rastrillo de titanio", tier:3, capacidad:24, alcance:2.0, velocidad:1.3, uso:"Barrido amplio con puas brillantes"},
+  {id:"herramienta_pinza_t1_basica", nombre:"Pinza recogebasura", tier:1, capacidad:4, alcance:2.0, velocidad:1.2, uso:"Recoge objetos sin agacharte"},
+  {id:"herramienta_pinza_t2_reciclada", nombre:"Pinza reciclada", tier:2, capacidad:7, alcance:2.4, velocidad:1.3, uso:"Mas alcance y agarre"},
+  {id:"herramienta_pinza_t3_electrica", nombre:"Pinza electrica", tier:3, capacidad:12, alcance:3.0, velocidad:1.5, uso:"Atrae y agarra basura a distancia"},
+  {id:"herramienta_red_rio", nombre:"Red de rio", tier:1, capacidad:15, alcance:2.2, velocidad:1.0, uso:"Saca basura flotante del agua"},
+  {id:"herramienta_iman_chatarra", nombre:"Iman de chatarra", tier:2, capacidad:30, alcance:3.0, velocidad:1.0, uso:"Atrae objetos metalicos en radio"},
+  {id:"herramienta_aspiradora_residuos", nombre:"Aspiradora de residuos", tier:3, capacidad:40, alcance:3.5, velocidad:1.2, uso:"Absorbe residuos en cono frontal"},
+  {id:"herramienta_bolsa_basura", nombre:"Bolsa de basura", tier:1, capacidad:25, alcance:0.0, velocidad:1.0, uso:"Guarda la basura recogida"},
+  {id:"herramienta_contenedor_reciclaje", nombre:"Contenedor de reciclaje", tier:2, capacidad:60, alcance:0.0, velocidad:1.0, uso:"Contenedor portatil: vacia aqui para ganar monedas"},
+];

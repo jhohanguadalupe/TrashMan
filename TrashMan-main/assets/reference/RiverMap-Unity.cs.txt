@@ -1,0 +1,655 @@
+// =============================================================================
+//  TRASH MAN 3D  -  MAPA "RIO TURBIO"  (Unity, C#)
+//  Nivel 3 - Aguas Dulces
+//
+//  Uso:
+//   1. Crea una escena vacia y un GameObject vacio llamado "RiverMap".
+//   2. Agrega este script (RiverMap) al objeto.
+//   3. (Opcional) Arrastra tus modelos (los .glb importados como prefabs):
+//      lamp, car, flamingo, boombox, water_bottle, mug en los campos de abajo.
+//      Si los dejas vacios, el mapa usa formas simples de relleno.
+//   4. Click derecho en el componente -> "Construir Mapa" (o dale Play).
+//
+//  Genera: terreno con cauce serpenteante, agua animada, orillas con rocas y
+//  juncos, puente de madera, 35 puntos de basura, punto de inicio del jugador,
+//  limites invisibles, niebla, cielo y luces con los mismos valores del juego.
+//
+//  Escrito para el pipeline Built-in / URP / HDRP (busca el shader disponible).
+// =============================================================================
+using System.Collections.Generic;
+using UnityEngine;
+
+public class RiverMap : MonoBehaviour
+{
+    // ---------------- Datos del nivel (iguales a mapsData.js) ----------------
+    [Header("Datos del nivel")]
+    public string title = "Rio Turbio";
+    public int totalTrash = 35;
+    public int rewardCoins = 750;
+    public int rewardXp = 1000;
+    public float halfSize = 46f;               // limites -46..46 en X y Z
+
+    [Header("Ambiente")]
+    public Color skyColor = new Color32(0x38, 0xBD, 0xF8, 255);
+    public Color fogColor = new Color32(0x02, 0x84, 0xC7, 255);
+    public float fogStart = 65f, fogEnd = 250f;
+    public Color sunColor = new Color32(0xFF, 0xED, 0xD5, 255);
+    public Color ambientColor = new Color32(0xE0, 0xF2, 0xFE, 255);
+    public float sunIntensity = 1.2f;
+    public Vector3 sunDirectionEuler = new Vector3(50f, 135f, 0f);
+
+    [Header("Rio")]
+    public float riverWidth = 14f;             // ancho del agua
+    public float meanderAmplitude = 9f;        // cuanto serpentea en X
+    public float meanderWaves = 1.6f;          // numero de curvas
+    public float bankWidth = 12f;              // orilla que sube desde el agua
+    public float bankHeight = 3.2f;
+    public float riverDepth = 1.2f;
+    public float waterLevel = 0.12f;
+    public Color waterColor = new Color(0.16f, 0.55f, 0.78f, 0.78f);
+    public float flowSpeed = 0.35f;
+
+    [Header("Terreno")]
+    [Range(24, 160)] public int gridResolution = 96;
+    public Color sandColor = new Color(0.78f, 0.70f, 0.52f);
+    public Color grassColor = new Color(0.30f, 0.52f, 0.28f);
+    public Color rockColor = new Color(0.28f, 0.33f, 0.41f);  // 0x475569 aprox.
+
+    [Header("Decoracion")]
+    public int rocks = 60;
+    public int reedClusters = 45;
+    public int trees = 18;
+    public int seed = 3003;
+
+    [Header("Tus modelos (opcional)")]
+    public GameObject lampPrefab;
+    public GameObject carPrefab;
+    public GameObject flamingoPrefab;
+    public GameObject[] trashPrefabs;          // boombox, water_bottle, mug...
+
+    [Header("Resultados (solo lectura)")]
+    public Transform playerSpawn;
+    public List<Vector3> trashSpawnPoints = new List<Vector3>();
+
+    Transform root;
+    Material waterMat;
+    Mesh waterMesh;
+    Vector3[] waterBase;
+
+    // ------------------------------------------------------------------ Rio
+    // Centro del rio en X para una Z dada (serpentea como seno).
+    public float RiverCenterX(float z)
+    {
+        float t = (z + halfSize) / (2f * halfSize);
+        return Mathf.Sin(t * Mathf.PI * 2f * meanderWaves) * meanderAmplitude;
+    }
+
+    // Altura del terreno en (x,z): lecho bajo el agua, orillas y colinas al borde.
+    public float HeightAt(float x, float z)
+    {
+        float d = Mathf.Abs(x - RiverCenterX(z));
+        float half = riverWidth * 0.5f;
+        if (d <= half)
+        {
+            float k = d / half;                               // 0 centro .. 1 orilla
+            return -riverDepth * (1f - k * k) + waterLevel * 0.2f;
+        }
+        float u = Mathf.Clamp01((d - half) / bankWidth);
+        float smooth = u * u * (3f - 2f * u);
+        float h = smooth * bankHeight;
+        // ondulacion suave para que no sea plano
+        h += (Mathf.PerlinNoise(x * 0.11f + seed, z * 0.11f) - 0.5f) * 1.4f * smooth;
+        // colinas hacia los bordes del mapa
+        float edge = Mathf.Max(Mathf.Abs(x), Mathf.Abs(z)) / halfSize;
+        h += Mathf.Pow(Mathf.Clamp01((edge - 0.75f) / 0.25f), 2f) * 2.5f;
+        return h;
+    }
+
+    // ------------------------------------------------------------- Construir
+    void Start()
+    {
+        if (root == null) Build();
+    }
+
+    [ContextMenu("Construir Mapa")]
+    public void Build()
+    {
+        Clear();
+        Random.InitState(seed);
+        root = new GameObject("RiverMap_Generated").transform;
+        root.SetParent(transform, false);
+
+        SetupEnvironment();
+        BuildTerrain();
+        BuildWater();
+        BuildRocks();
+        BuildReeds();
+        BuildTrees();
+        BuildBridge();
+        BuildLandmarks();
+        BuildTrash();
+        BuildBounds();
+        BuildPlayerSpawn();
+    }
+
+    [ContextMenu("Borrar Mapa")]
+    public void Clear()
+    {
+        for (int i = transform.childCount - 1; i >= 0; i--)
+        {
+            var c = transform.GetChild(i).gameObject;
+            if (Application.isPlaying) Destroy(c); else DestroyImmediate(c);
+        }
+        root = null;
+        trashSpawnPoints.Clear();
+    }
+
+    // --------------------------------------------------------------- Ambiente
+    void SetupEnvironment()
+    {
+        RenderSettings.fog = true;
+        RenderSettings.fogMode = FogMode.Linear;
+        RenderSettings.fogColor = fogColor;
+        RenderSettings.fogStartDistance = fogStart;
+        RenderSettings.fogEndDistance = fogEnd;
+        RenderSettings.ambientMode = UnityEngine.Rendering.AmbientMode.Flat;
+        RenderSettings.ambientLight = ambientColor * 0.6f;
+
+        var cam = Camera.main;
+        if (cam != null)
+        {
+            cam.clearFlags = CameraClearFlags.SolidColor;
+            cam.backgroundColor = skyColor;
+        }
+
+        var sunGO = new GameObject("Sol");
+        sunGO.transform.SetParent(root, false);
+        sunGO.transform.rotation = Quaternion.Euler(sunDirectionEuler);
+        var sun = sunGO.AddComponent<Light>();
+        sun.type = LightType.Directional;
+        sun.color = sunColor;
+        sun.intensity = sunIntensity;
+        sun.shadows = LightShadows.Soft;
+    }
+
+    // --------------------------------------------------------------- Terreno
+    void BuildTerrain()
+    {
+        int n = gridResolution;
+        var verts = new Vector3[(n + 1) * (n + 1)];
+        var uvs = new Vector2[verts.Length];
+        var tris = new int[n * n * 6];
+
+        for (int iz = 0; iz <= n; iz++)
+            for (int ix = 0; ix <= n; ix++)
+            {
+                float x = Mathf.Lerp(-halfSize, halfSize, ix / (float)n);
+                float z = Mathf.Lerp(-halfSize, halfSize, iz / (float)n);
+                int i = iz * (n + 1) + ix;
+                verts[i] = new Vector3(x, HeightAt(x, z), z);
+                uvs[i] = new Vector2(ix / (float)n, iz / (float)n);
+            }
+
+        int t = 0;
+        for (int iz = 0; iz < n; iz++)
+            for (int ix = 0; ix < n; ix++)
+            {
+                int a = iz * (n + 1) + ix, b = a + 1, c = a + (n + 1), d = c + 1;
+                tris[t++] = a; tris[t++] = c; tris[t++] = b;
+                tris[t++] = b; tris[t++] = c; tris[t++] = d;
+            }
+
+        var mesh = new Mesh { name = "Terreno_Rio" };
+        mesh.indexFormat = UnityEngine.Rendering.IndexFormat.UInt32;
+        mesh.vertices = verts; mesh.uv = uvs; mesh.triangles = tris;
+        mesh.RecalculateNormals(); mesh.RecalculateBounds();
+
+        var go = new GameObject("Terreno");
+        go.transform.SetParent(root, false);
+        go.AddComponent<MeshFilter>().sharedMesh = mesh;
+        go.AddComponent<MeshRenderer>().sharedMaterial = MakeMat(Color.white, BuildSplatTexture(), 0.1f);
+        go.AddComponent<MeshCollider>().sharedMesh = mesh;
+        go.isStatic = true;
+    }
+
+    // Textura de colores calculada con la misma funcion de altura (arena -> pasto -> roca)
+    Texture2D BuildSplatTexture()
+    {
+        const int S = 512;
+        var tex = new Texture2D(S, S, TextureFormat.RGBA32, true);
+        tex.wrapMode = TextureWrapMode.Clamp;
+        var px = new Color[S * S];
+        for (int y = 0; y < S; y++)
+            for (int x = 0; x < S; x++)
+            {
+                float wx = Mathf.Lerp(-halfSize, halfSize, x / (float)(S - 1));
+                float wz = Mathf.Lerp(-halfSize, halfSize, y / (float)(S - 1));
+                float h = HeightAt(wx, wz);
+                float d = Mathf.Abs(wx - RiverCenterX(wz));
+                float noise = Mathf.PerlinNoise(wx * 0.6f + 50f, wz * 0.6f) * 0.15f;
+                Color c;
+                if (h < waterLevel + 0.15f) c = Color.Lerp(sandColor * 0.7f, sandColor, noise * 6f); // lecho
+                else if (d < riverWidth * 0.5f + 3.5f) c = Color.Lerp(sandColor, grassColor, Mathf.Clamp01((d - riverWidth * 0.5f) / 3.5f)); // playa
+                else if (h > bankHeight + 1.2f) c = Color.Lerp(grassColor, rockColor, Mathf.Clamp01((h - bankHeight - 1.2f) / 2f)); // colina rocosa
+                else c = grassColor;
+                px[y * S + x] = Color.Lerp(c, c * 0.85f, noise * 3f);
+            }
+        tex.SetPixels(px);
+        tex.Apply();
+        return tex;
+    }
+
+    // ------------------------------------------------------------------ Agua
+    void BuildWater()
+    {
+        int segZ = 60, segX = 6;
+        var verts = new List<Vector3>();
+        var uvs = new List<Vector2>();
+        var tris = new List<int>();
+        float w = riverWidth * 1.15f;                // un poco mas ancho: se hunde en las orillas
+
+        for (int iz = 0; iz <= segZ; iz++)
+        {
+            float z = Mathf.Lerp(-halfSize, halfSize, iz / (float)segZ);
+            float cx = RiverCenterX(z);
+            for (int ix = 0; ix <= segX; ix++)
+            {
+                float u = ix / (float)segX;
+                verts.Add(new Vector3(cx + (u - 0.5f) * w, waterLevel, z));
+                uvs.Add(new Vector2(u, z * 0.08f));
+            }
+        }
+        for (int iz = 0; iz < segZ; iz++)
+            for (int ix = 0; ix < segX; ix++)
+            {
+                int a = iz * (segX + 1) + ix, b = a + 1, c = a + segX + 1, d = c + 1;
+                tris.Add(a); tris.Add(c); tris.Add(b);
+                tris.Add(b); tris.Add(c); tris.Add(d);
+            }
+
+        waterMesh = new Mesh { name = "Agua_Rio" };
+        waterMesh.SetVertices(verts); waterMesh.SetUVs(0, uvs); waterMesh.SetTriangles(tris, 0);
+        waterMesh.RecalculateNormals();
+        waterBase = verts.ToArray();
+
+        waterMat = MakeMat(waterColor, null, 0.9f, true);
+        var go = new GameObject("Agua");
+        go.transform.SetParent(root, false);
+        go.AddComponent<MeshFilter>().sharedMesh = waterMesh;
+        go.AddComponent<MeshRenderer>().sharedMaterial = waterMat;
+        // zona de agua como trigger (para ralentizar, sonido de chapoteo, etc.)
+        var col = go.AddComponent<MeshCollider>();
+        col.sharedMesh = waterMesh; col.convex = false; col.isTrigger = false;
+        go.AddComponent<RiverWaterZone>();
+        go.layer = LayerMask.NameToLayer("Water") >= 0 ? LayerMask.NameToLayer("Water") : 0;
+    }
+
+    void Update()
+    {
+        if (waterMesh == null) return;
+        // corriente: desplaza la textura y ondula la superficie
+        float t = Time.time;
+        var v = waterMesh.vertices;
+        for (int i = 0; i < v.Length; i++)
+        {
+            var b = waterBase[i];
+            v[i].y = b.y + Mathf.Sin(t * 1.6f + b.z * 0.4f + b.x * 0.7f) * 0.05f;
+        }
+        waterMesh.vertices = v;
+        waterMesh.RecalculateNormals();
+        if (waterMat != null)
+        {
+            var off = new Vector2(0f, -t * flowSpeed);
+            if (waterMat.HasProperty("_MainTex")) waterMat.mainTextureOffset = off;
+            if (waterMat.HasProperty("_BaseMap")) waterMat.SetTextureOffset("_BaseMap", off);
+        }
+    }
+
+    // ----------------------------------------------------------------- Rocas
+    void BuildRocks()
+    {
+        var parent = new GameObject("Rocas").transform; parent.SetParent(root, false);
+        for (int i = 0; i < rocks; i++)
+        {
+            // 60% en el agua / orilla, 40% dispersas
+            float z = Random.Range(-halfSize + 3f, halfSize - 3f);
+            float x = RiverCenterX(z) + (i % 5 < 3
+                ? Random.Range(-riverWidth * 0.6f, riverWidth * 0.6f)
+                : Random.Range(-halfSize * 0.9f, halfSize * 0.9f));
+            x = Mathf.Clamp(x, -halfSize + 2f, halfSize - 2f);
+            float s = Random.Range(0.5f, 1.9f);
+            var rock = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+            rock.name = "Roca";
+            rock.transform.SetParent(parent, false);
+            rock.transform.position = new Vector3(x, HeightAt(x, z) + s * 0.15f, z);
+            rock.transform.localScale = new Vector3(s * Random.Range(0.9f, 1.5f), s * Random.Range(0.55f, 0.9f), s * Random.Range(0.9f, 1.4f));
+            rock.transform.rotation = Quaternion.Euler(Random.Range(-10f, 10f), Random.Range(0f, 360f), Random.Range(-10f, 10f));
+            rock.GetComponent<Renderer>().sharedMaterial = MakeMat(Color.Lerp(rockColor, Color.gray, Random.value * 0.5f), null, 0.2f);
+            rock.isStatic = true;
+        }
+    }
+
+    // ----------------------------------------------------------------- Juncos
+    void BuildReeds()
+    {
+        var parent = new GameObject("Juncos").transform; parent.SetParent(root, false);
+        var reedMat = MakeMat(new Color(0.42f, 0.58f, 0.24f), null, 0.1f);
+        for (int c = 0; c < reedClusters; c++)
+        {
+            float z = Random.Range(-halfSize + 3f, halfSize - 3f);
+            float side = Random.value < 0.5f ? -1f : 1f;
+            float cx = RiverCenterX(z) + side * (riverWidth * 0.5f + Random.Range(-0.6f, 2.5f));
+            for (int k = 0; k < 7; k++)
+            {
+                float x = cx + Random.Range(-1.1f, 1.1f), zz = z + Random.Range(-1.1f, 1.1f);
+                var r = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+                StripCollider(r);
+                r.name = "Junco";
+                r.transform.SetParent(parent, false);
+                float h = Random.Range(1.1f, 2.2f);
+                r.transform.position = new Vector3(x, Mathf.Max(HeightAt(x, zz), waterLevel - 0.2f) + h * 0.5f, zz);
+                r.transform.localScale = new Vector3(0.07f, h * 0.5f, 0.07f);
+                r.transform.rotation = Quaternion.Euler(Random.Range(-8f, 8f), 0f, Random.Range(-8f, 8f));
+                r.GetComponent<Renderer>().sharedMaterial = reedMat;
+            }
+        }
+    }
+
+    // ----------------------------------------------------------------- Arboles
+    void BuildTrees()
+    {
+        var parent = new GameObject("Arboles").transform; parent.SetParent(root, false);
+        var trunkMat = MakeMat(new Color(0.36f, 0.24f, 0.14f), null, 0.1f);
+        var leafMat = MakeMat(new Color(0.20f, 0.46f, 0.22f), null, 0.1f);
+        int placed = 0, guard = 0;
+        while (placed < trees && guard++ < 500)
+        {
+            float x = Random.Range(-halfSize + 3f, halfSize - 3f), z = Random.Range(-halfSize + 3f, halfSize - 3f);
+            if (Mathf.Abs(x - RiverCenterX(z)) < riverWidth * 0.5f + 5f) continue;     // no sobre el rio/playa
+            float y = HeightAt(x, z);
+            var tree = new GameObject("Arbol"); tree.transform.SetParent(parent, false);
+            tree.transform.position = new Vector3(x, y, z);
+            float h = Random.Range(2.6f, 4.2f);
+            var trunk = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+            trunk.transform.SetParent(tree.transform, false);
+            trunk.transform.localPosition = new Vector3(0, h * 0.5f, 0);
+            trunk.transform.localScale = new Vector3(0.45f, h * 0.5f, 0.45f);
+            trunk.GetComponent<Renderer>().sharedMaterial = trunkMat;
+            var crown = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+            StripCollider(crown);
+            crown.transform.SetParent(tree.transform, false);
+            crown.transform.localPosition = new Vector3(0, h + 0.8f, 0);
+            crown.transform.localScale = Vector3.one * Random.Range(2.6f, 3.8f);
+            crown.GetComponent<Renderer>().sharedMaterial = leafMat;
+            placed++;
+        }
+    }
+
+    // ----------------------------------------------------------------- Puente
+    void BuildBridge()
+    {
+        float z = 6f;                                  // cruza el rio en z = 6
+        float cx = RiverCenterX(z);
+        float span = riverWidth + bankWidth * 0.5f;
+        float y = bankHeight * 0.55f;
+        var parent = new GameObject("Puente").transform; parent.SetParent(root, false);
+        parent.position = new Vector3(cx, y, z);
+        var wood = MakeMat(new Color(0.45f, 0.30f, 0.17f), null, 0.15f);
+
+        int planks = Mathf.CeilToInt(span / 0.55f);
+        for (int i = 0; i < planks; i++)
+        {
+            var p = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            p.transform.SetParent(parent, false);
+            p.transform.localPosition = new Vector3((i - (planks - 1) * 0.5f) * 0.55f, 0, 0);
+            p.transform.localScale = new Vector3(0.5f, 0.12f, 3.2f);
+            p.GetComponent<Renderer>().sharedMaterial = wood;
+        }
+        for (int side = -1; side <= 1; side += 2)
+        {
+            var rail = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            rail.transform.SetParent(parent, false);
+            rail.transform.localPosition = new Vector3(0, 0.95f, side * 1.55f);
+            rail.transform.localScale = new Vector3(span, 0.1f, 0.1f);
+            rail.GetComponent<Renderer>().sharedMaterial = wood;
+            for (int k = 0; k <= 6; k++)
+            {
+                var post = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                post.transform.SetParent(parent, false);
+                post.transform.localPosition = new Vector3((k / 6f - 0.5f) * span, 0.5f, side * 1.55f);
+                post.transform.localScale = new Vector3(0.12f, 1.0f, 0.12f);
+                post.GetComponent<Renderer>().sharedMaterial = wood;
+            }
+        }
+        // pilares
+        for (int k = -1; k <= 1; k += 2)
+        {
+            var pil = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+            pil.transform.SetParent(parent, false);
+            pil.transform.localPosition = new Vector3(k * (riverWidth * 0.5f), -y * 0.5f - 0.3f, 0);
+            pil.transform.localScale = new Vector3(0.5f, y * 0.5f + 0.9f, 0.5f);
+            pil.GetComponent<Renderer>().sharedMaterial = wood;
+        }
+    }
+
+    // -------------------------------------------------- Modelos / decoracion
+    void BuildLandmarks()
+    {
+        var parent = new GameObject("Modelos").transform; parent.SetParent(root, false);
+
+        // farolas a lo largo de la orilla oeste
+        for (int i = 0; i < 6; i++)
+        {
+            float z = -36f + i * 14f;
+            float x = RiverCenterX(z) - (riverWidth * 0.5f + 5.5f);
+            Spawn(lampPrefab, "Farola", parent, new Vector3(x, HeightAt(x, z), z), 0f, 1f, Primitive.Lamp);
+        }
+        // carro abandonado medio hundido en la orilla este
+        {
+            float z = -22f, x = RiverCenterX(z) + riverWidth * 0.5f + 3f;
+            Spawn(carPrefab, "Carro", parent, new Vector3(x, HeightAt(x, z) - 0.15f, z), 70f, 1f, Primitive.Car);
+        }
+        // flamencos en aguas poco profundas
+        for (int i = 0; i < 4; i++)
+        {
+            float z = Random.Range(-30f, 30f);
+            float x = RiverCenterX(z) + Random.Range(-riverWidth * 0.35f, riverWidth * 0.35f);
+            Spawn(flamingoPrefab, "Flamenco", parent, new Vector3(x, waterLevel - 0.1f, z), Random.Range(0f, 360f), 1f, Primitive.Flamingo);
+        }
+    }
+
+    enum Primitive { Lamp, Car, Flamingo, Trash }
+
+    void Spawn(GameObject prefab, string name, Transform parent, Vector3 pos, float yaw, float scale, Primitive fallback)
+    {
+        GameObject go;
+        if (prefab != null)
+        {
+            go = Instantiate(prefab, pos, Quaternion.Euler(0, yaw, 0), parent);
+            go.transform.localScale *= scale;
+        }
+        else
+        {
+            go = new GameObject(name);
+            go.transform.SetParent(parent, false);
+            go.transform.SetPositionAndRotation(pos, Quaternion.Euler(0, yaw, 0));
+            switch (fallback)
+            {
+                case Primitive.Lamp:
+                    Part(go, PrimitiveType.Cylinder, new Vector3(0, 2, 0), new Vector3(0.12f, 2f, 0.12f), new Color(0.2f, 0.2f, 0.22f));
+                    Part(go, PrimitiveType.Sphere, new Vector3(0, 4.1f, 0), Vector3.one * 0.5f, new Color(1f, 0.95f, 0.7f));
+                    var l = new GameObject("Luz").AddComponent<Light>();
+                    l.transform.SetParent(go.transform, false); l.transform.localPosition = new Vector3(0, 4.1f, 0);
+                    l.type = LightType.Point; l.range = 10f; l.intensity = 1.2f; l.color = new Color(1f, 0.9f, 0.6f);
+                    break;
+                case Primitive.Car:
+                    Part(go, PrimitiveType.Cube, new Vector3(0, 0.6f, 0), new Vector3(4f, 0.9f, 1.8f), new Color(0.55f, 0.18f, 0.16f));
+                    Part(go, PrimitiveType.Cube, new Vector3(-0.2f, 1.25f, 0), new Vector3(2f, 0.6f, 1.6f), new Color(0.45f, 0.6f, 0.7f));
+                    break;
+                case Primitive.Flamingo:
+                    Part(go, PrimitiveType.Cylinder, new Vector3(0, 0.55f, 0), new Vector3(0.06f, 0.55f, 0.06f), new Color(1f, 0.55f, 0.65f));
+                    Part(go, PrimitiveType.Sphere, new Vector3(0, 1.25f, 0), new Vector3(0.5f, 0.4f, 0.8f), new Color(1f, 0.45f, 0.6f));
+                    Part(go, PrimitiveType.Sphere, new Vector3(0, 1.75f, 0.35f), Vector3.one * 0.22f, new Color(1f, 0.6f, 0.7f));
+                    break;
+                case Primitive.Trash:
+                    Part(go, PrimitiveType.Cube, new Vector3(0, 0.2f, 0), new Vector3(0.4f, 0.4f, 0.4f), new Color(0.6f, 0.6f, 0.2f));
+                    break;
+            }
+        }
+    }
+
+    static void StripCollider(GameObject g)
+    {
+        var c = g.GetComponent<Collider>();
+        if (c == null) return;
+        if (Application.isPlaying) Destroy(c); else DestroyImmediate(c);
+    }
+
+    static void Part(GameObject parent, PrimitiveType type, Vector3 localPos, Vector3 scale, Color color)
+    {
+        var p = GameObject.CreatePrimitive(type);
+        p.transform.SetParent(parent.transform, false);
+        p.transform.localPosition = localPos; p.transform.localScale = scale;
+        p.GetComponent<Renderer>().sharedMaterial = MakeMat(color, null, 0.2f);
+    }
+
+    // ----------------------------------------------------------------- Basura
+    void BuildTrash()
+    {
+        var parent = new GameObject("Basura").transform; parent.SetParent(root, false);
+        trashSpawnPoints.Clear();
+        int guard = 0;
+        while (trashSpawnPoints.Count < totalTrash && guard++ < 3000)
+        {
+            float z = Random.Range(-halfSize + 4f, halfSize - 4f);
+            // la mayoria en las orillas y el agua poco profunda
+            float x = RiverCenterX(z) + Random.Range(-1f, 1f) * (riverWidth * 0.5f + bankWidth * 0.8f);
+            if (Mathf.Abs(x) > halfSize - 4f) continue;
+            float y = HeightAt(x, z);
+            if (y > bankHeight + 0.8f) continue;                  // no en las colinas
+            var p = new Vector3(x, Mathf.Max(y, waterLevel) + 0.35f, z);
+            bool tooClose = false;
+            foreach (var q in trashSpawnPoints) if ((q - p).sqrMagnitude < 9f) { tooClose = true; break; }
+            if (tooClose) continue;
+            trashSpawnPoints.Add(p);
+
+            GameObject pf = (trashPrefabs != null && trashPrefabs.Length > 0) ? trashPrefabs[trashSpawnPoints.Count % trashPrefabs.Length] : null;
+            Spawn(pf, "Basura", parent, p, Random.Range(0f, 360f), 1f, Primitive.Trash);
+            var last = parent.GetChild(parent.childCount - 1);
+            var sc = last.gameObject.AddComponent<SphereCollider>(); sc.isTrigger = true; sc.radius = 0.9f;
+            last.gameObject.AddComponent<RiverTrashItem>();
+            last.gameObject.tag = TagOrUntagged("Trash");
+        }
+    }
+
+    static string TagOrUntagged(string tag)
+    {
+        try { var _ = GameObject.FindGameObjectWithTag(tag); return tag; }
+        catch (UnityException) { return "Untagged"; }
+    }
+
+    // ----------------------------------------------------------------- Limites
+    void BuildBounds()
+    {
+        var parent = new GameObject("Limites").transform; parent.SetParent(root, false);
+        float h = 12f, th = 1f, s = halfSize + th * 0.5f;
+        MakeWall(parent, new Vector3(0, h * 0.5f, s), new Vector3(halfSize * 2 + 2, h, th));
+        MakeWall(parent, new Vector3(0, h * 0.5f, -s), new Vector3(halfSize * 2 + 2, h, th));
+        MakeWall(parent, new Vector3(s, h * 0.5f, 0), new Vector3(th, h, halfSize * 2 + 2));
+        MakeWall(parent, new Vector3(-s, h * 0.5f, 0), new Vector3(th, h, halfSize * 2 + 2));
+    }
+
+    static void MakeWall(Transform parent, Vector3 pos, Vector3 size)
+    {
+        var w = new GameObject("Muro"); w.transform.SetParent(parent, false);
+        w.transform.localPosition = pos;
+        var b = w.AddComponent<BoxCollider>(); b.size = size;
+    }
+
+    void BuildPlayerSpawn()
+    {
+        var go = new GameObject("PlayerSpawn");
+        go.transform.SetParent(root, false);
+        float z = -40f, x = RiverCenterX(z) + riverWidth * 0.5f + 6f;
+        go.transform.position = new Vector3(x, HeightAt(x, z) + 0.1f, z);
+        go.transform.LookAt(new Vector3(RiverCenterX(0), go.transform.position.y, 0));
+        playerSpawn = go.transform;
+    }
+
+    // ----------------------------------------------------------------- Material
+    static Material MakeMat(Color c, Texture2D tex, float smoothness, bool transparent = false)
+    {
+        Shader sh = Shader.Find("Universal Render Pipeline/Lit");
+        bool urp = sh != null;
+        if (!urp) sh = Shader.Find("Standard");
+        if (sh == null) sh = Shader.Find("Sprites/Default");
+        var m = new Material(sh);
+        m.color = c;
+        if (tex != null)
+        {
+            m.mainTexture = tex;
+            if (m.HasProperty("_BaseMap")) m.SetTexture("_BaseMap", tex);
+        }
+        if (m.HasProperty("_BaseColor")) m.SetColor("_BaseColor", c);
+        if (m.HasProperty("_Glossiness")) m.SetFloat("_Glossiness", smoothness);
+        if (m.HasProperty("_Smoothness")) m.SetFloat("_Smoothness", smoothness);
+        if (transparent)
+        {
+            if (urp)
+            {
+                m.SetFloat("_Surface", 1f);
+                m.SetOverrideTag("RenderType", "Transparent");
+                m.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
+                m.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
+                m.SetInt("_ZWrite", 0);
+                m.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
+            }
+            else if (m.HasProperty("_Mode"))
+            {
+                m.SetFloat("_Mode", 3f);
+                m.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
+                m.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
+                m.SetInt("_ZWrite", 0);
+                m.EnableKeyword("_ALPHABLEND_ON");
+            }
+            m.renderQueue = 3000;
+        }
+        return m;
+    }
+
+    void OnDrawGizmosSelected()
+    {
+        Gizmos.color = Color.cyan;
+        Vector3 prev = Vector3.zero;
+        for (int i = 0; i <= 60; i++)
+        {
+            float z = Mathf.Lerp(-halfSize, halfSize, i / 60f);
+            var p = new Vector3(RiverCenterX(z), 0.2f, z);
+            if (i > 0) Gizmos.DrawLine(prev, p);
+            prev = p;
+        }
+        Gizmos.color = Color.yellow;
+        Gizmos.DrawWireCube(Vector3.zero, new Vector3(halfSize * 2, 1, halfSize * 2));
+        Gizmos.color = Color.green;
+        foreach (var p in trashSpawnPoints) Gizmos.DrawWireSphere(p, 0.4f);
+    }
+}
+
+// Zona de agua: avisa al jugador (ralentizar, chapoteo, etc.). Conecta con tu codigo.
+public class RiverWaterZone : MonoBehaviour
+{
+    public float speedMultiplier = 0.6f;
+    void OnCollisionEnter(Collision c) { /* reproducir "splash.ogg" aqui */ }
+}
+
+// Basura recogible: se destruye al tocarla el jugador (tag "Player"). Conecta con tu contador.
+public class RiverTrashItem : MonoBehaviour
+{
+    void Update() { transform.Rotate(0f, 60f * Time.deltaTime, 0f); transform.position += Vector3.up * Mathf.Sin(Time.time * 2f + transform.position.x) * 0.0015f; }
+    void OnTriggerEnter(Collider other)
+    {
+        if (!other.CompareTag("Player")) return;
+        // reproducir "trash_pickup.ogg" y sumar al contador aqui
+        Destroy(gameObject);
+    }
+}
