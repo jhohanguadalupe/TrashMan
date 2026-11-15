@@ -2,7 +2,7 @@
 <html lang="es" class="h-full bg-slate-950 text-slate-100 select-none overflow-hidden">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <title>Trash Man - 3D Eco Arcade | Arquitectura Modular</title>
   
   <!-- Tailwind CSS CDN -->
@@ -178,6 +178,18 @@
     </div>
   </div>
 
+  <!-- Browser security may require one tap before entering fullscreen. -->
+  <div id="fullscreen-gate" class="fullscreen-gate hidden" role="dialog" aria-modal="true" aria-labelledby="fullscreen-gate-title">
+    <div class="fullscreen-gate__card glass-panel">
+      <div class="fullscreen-gate__icon">⛶</div>
+      <p class="fullscreen-gate__eyebrow">TRASH MAN · MODO INMERSIVO</p>
+      <h2 id="fullscreen-gate-title">Juega a pantalla completa</h2>
+      <p id="fullscreen-gate-message">El navegador necesita un toque para ocultar sus barras y ampliar el juego.</p>
+      <button type="button" onclick="TrashGame.Fullscreen.enter()">ENTRAR AL JUEGO <span>↗</span></button>
+      <button type="button" class="fullscreen-gate__skip" onclick="TrashGame.Fullscreen.dismiss()">Continuar en el navegador</button>
+    </div>
+  </div>
+
   <!-- ✦ LOBBY BACKGROUND IMAGE — Full-screen art, behind everything -->
   <div id="lobby-bg-image" style="
     position: fixed;
@@ -276,6 +288,8 @@
         <button onclick="TrashGame.Sound.toggleMute()" class="w-10 h-10 rounded-2xl glass-panel border border-slate-700/70 hover:border-emerald-400 flex items-center justify-center text-slate-300 hover:text-emerald-400 transition-all hover:scale-105" title="Activar/Silenciar Sonido">
           <span id="audio-icon-display" class="text-lg">🔊</span>
         </button>
+
+        <button type="button" class="fullscreen-toggle w-10 h-10 rounded-2xl glass-panel border border-slate-700/70 text-cyan-200" onclick="TrashGame.Fullscreen.toggle()" aria-label="Pantalla completa" title="Pantalla completa">⛶</button>
 
         <!-- Info -->
         <button onclick="TrashGame.UI.showToast('Trash Man: Personaliza tu Eco-Guardián, usa emotes y vence a los titanes.', 'info')" class="w-10 h-10 rounded-2xl glass-panel border border-slate-700/70 hover:border-cyan-400 flex items-center justify-center text-slate-300 hover:text-cyan-400 transition-all hover:scale-105" title="Información">
@@ -569,6 +583,8 @@
         <button id="recycling-shop-button" onclick="TrashGame.Shop.open()" class="hidden glass-panel h-10 px-3 rounded-2xl flex items-center gap-1.5 text-[10px] font-bold text-emerald-200 border border-emerald-500/30 hover:border-emerald-300 transition-colors" title="Estación de reciclaje y tienda">
           <span>♻️</span><span id="recycling-shop-distance">ESTACIÓN</span>
         </button>
+
+        <button type="button" class="fullscreen-toggle glass-panel w-10 h-10 rounded-2xl border border-slate-700/70 text-cyan-200 pointer-events-auto" onclick="TrashGame.Fullscreen.toggle()" aria-label="Pantalla completa" title="Pantalla completa">⛶</button>
 
         <!-- Pause -->
         <button onclick="TrashGame.Main.togglePause()" class="glass-panel w-10 h-10 rounded-2xl flex items-center justify-center text-slate-300 hover:text-white hover:border-eco-400 transition-colors" title="Pausar">
@@ -1928,6 +1944,7 @@
   <script src="js/ui/uiController.js"></script>
   <script src="js/ui/mobileControls.js"></script>
   <script src="js/ui/recyclingShop.js"></script>
+  <script src="js/ui/fullscreen.js"></script>
 
   <!-- 6. Main Orchestrator & Loop -->
   <script src="js/main.js"></script>
@@ -1997,6 +2014,7 @@
         splash.style.transition = 'opacity 0.9s ease';
         splash.style.opacity    = '0';
         setTimeout(() => { splash.style.display = 'none'; }, 950);
+        setTimeout(() => { if (TrashGame.Fullscreen) TrashGame.Fullscreen.onSplashFinished(); }, 960);
       }, 600);
     }
 
