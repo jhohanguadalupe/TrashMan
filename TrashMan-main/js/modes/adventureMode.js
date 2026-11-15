@@ -127,7 +127,9 @@ TrashGame.AdventureMode = {
             : toolData ? 1 + Math.max(0, (toolData.tier || 1) - 1) * 0.06 : 1;
         const dmg = Math.round(((isCrit ? 160 : 95) + Math.floor(Math.random() * 35)) * weaponMultiplier);
 
-        const currentHp = this.boss.takeDamage(dmg);
+        const onlineTitan = TrashGame.Main.currentMode === 'MULTIPLAYER' && TrashGame.OnlineRoom && TrashGame.OnlineRoom.gameMode === 'titan' && TrashGame.OnlineRoom.isConnected;
+        const currentHp = onlineTitan ? this.boss.hp : this.boss.takeDamage(dmg);
+        if (onlineTitan) TrashGame.OnlineRoom.sendBossHit(dmg);
         this.spawnImpactParticles(p.mesh.position, worldGroup, isCrit ? 0xf59e0b : 0x00ff88);
         this.spawnFloatingDamage(p.mesh.position, isCrit ? `⚡ CRÍTICO -${dmg}` : `-${dmg}`, camera, isCrit ? '#f59e0b' : '#38bdf8');
         this.updateBossHUD();
@@ -135,7 +137,7 @@ TrashGame.AdventureMode = {
         worldGroup.remove(p.mesh);
         this.projectiles.splice(i, 1);
 
-        if (currentHp <= 0) {
+        if (!onlineTitan && currentHp <= 0) {
           this.victory();
         }
         continue;

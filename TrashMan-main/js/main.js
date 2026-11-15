@@ -345,7 +345,7 @@ TrashGame.Main = {
   },
 
   onActionTrigger() {
-    if (this.currentMode === 'BOSS') {
+    if (this.currentMode === 'BOSS' || this.currentMode === 'MULTIPLAYER' && TrashGame.OnlineRoom && TrashGame.OnlineRoom.gameMode === 'titan') {
       if (TrashGame.Humans) TrashGame.Humans.triggerShoot(this.characterGroup);
       TrashGame.AdventureMode.firePlasma(this.characterGroup.position, this.cameraController.yaw, this.worldGroup);
     }
@@ -353,7 +353,7 @@ TrashGame.Main = {
 
   onShootTrigger() {
     if (this.isPaused || this.currentMode === 'LOBBY') return;
-    if (this.currentMode === 'BOSS') {
+    if (this.currentMode === 'BOSS' || this.currentMode === 'MULTIPLAYER' && TrashGame.OnlineRoom && TrashGame.OnlineRoom.gameMode === 'titan') {
       this.onActionTrigger();
       return;
     }
@@ -436,8 +436,9 @@ TrashGame.Main = {
     const threeContainer = document.getElementById('three-container');
     if (threeContainer) threeContainer.style.opacity = '1';
     this.currentMode = modeType.toUpperCase();
-    if (modeType !== 'boss' && this.cameraController) this.cameraController.setFocus(null);
-    this.currentMapId = mapId;
+    const multiplayerTitan = modeType === 'multiplayer' && TrashGame.OnlineRoom && TrashGame.OnlineRoom.gameMode === 'titan';
+    if (modeType !== 'boss' && !multiplayerTitan && this.cameraController) this.cameraController.setFocus(null);
+    this.currentMapId = multiplayerTitan ? 'boss_arena' : mapId;
     this.isPaused = false;
     this.mobileInput.x = 0;
     this.mobileInput.y = 0;
@@ -458,7 +459,7 @@ TrashGame.Main = {
     this.updatePlayerHpBar();
     if (TrashGame.Monsters) TrashGame.Monsters.clear(this.worldGroup);
 
-    const actualMapKey = modeType === 'boss' ? 'boss_arena' : mapId;
+    const actualMapKey = modeType === 'boss' || multiplayerTitan ? 'boss_arena' : mapId;
     const mapData = TrashGame.MapsData[actualMapKey] || TrashGame.MapsData.playa;
     if (TrashGame.Sound) TrashGame.Sound.setMapAudio(actualMapKey);
 
@@ -493,10 +494,11 @@ TrashGame.Main = {
       };
     }
     try {
-      if (modeType === 'boss') {
+      if (modeType === 'boss' || multiplayerTitan) {
         TrashGame.MapBuilder.build(this.scene, this.worldGroup, 'boss_arena', this.trashManager);
         TrashGame.AdventureMode.start(this.worldGroup);
         if (TrashGame.Monsters) TrashGame.Monsters.spawnForMap(this.worldGroup, 'boss_arena', TrashGame.State.player.level || 1, this.difficulty);
+        if (multiplayerTitan) TrashGame.MultiplayerMode.start(this.worldGroup);
       } else {
         TrashGame.MapBuilder.build(this.scene, this.worldGroup, mapId, this.trashManager);
         if (TrashGame.Monsters) TrashGame.Monsters.spawnForMap(this.worldGroup, mapId, TrashGame.State.player.level || 1, this.difficulty);
@@ -880,7 +882,12 @@ TrashGame.Main = {
     if (TrashGame.Shop) TrashGame.Shop.updateProximity(this.player.pos, this.currentMapId);
 
     // 4. Update Modes
-    if (this.currentMode === 'STORY' || this.currentMode === 'MULTIPLAYER') {
+    if (this.currentMode === 'MULTIPLAYER' && TrashGame.OnlineRoom && TrashGame.OnlineRoom.gameMode === 'titan') {
+      TrashGame.AdventureMode.update(this.player.pos, dt, this.worldGroup, this.camera, (dmg, knockback) => {
+        if (knockback) { this.player.vel.add(knockback); this.player.isGrounded = false; }
+        this.playerTakeDamage(dmg);
+      });
+    } else if (this.currentMode === 'STORY' || this.currentMode === 'MULTIPLAYER') {
       const cleaning = this.keys.MouseDown || this.mobileInput.clean;
       this.trashManager.update(this.player.pos, cleaning, dt, (bonus, combo, trash) => {
         if (TrashGame.OnlineRoom && TrashGame.OnlineRoom.isConnected && TrashGame.OnlineRoom.roomStarted) TrashGame.OnlineRoom.sendTrash({ ...trash, bonus });

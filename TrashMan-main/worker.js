@@ -118,11 +118,18 @@ export class GlobalRoom {
     } else if (message.type === 'start') {
       if (player.id !== this.room.hostId) return send(socket, { type: 'error', message: 'Solo el anfitrión puede iniciar la partida.' });
       const session = message.session || {};
+      const gameMode = session.gameMode === 'titan' ? 'titan' : 'cleaning';
       this.room.session = {
-        mapId: ROOM_MAPS.has(session.mapId) ? session.mapId : 'playa',
+        mapId: gameMode === 'titan' ? 'boss_arena' : (ROOM_MAPS.has(session.mapId) ? session.mapId : 'playa'),
+        gameMode,
         difficulty: DIFFICULTIES.has(session.difficulty) ? session.difficulty : 'medium',
         seed: crypto.getRandomValues(new Uint32Array(1))[0] & 0x7fffffff
       };
+      if (this.room.session.gameMode === 'titan') {
+        const titanHp = { easy: 1800, medium: 2500, hard: 4375 }[this.room.session.difficulty];
+        this.room.session.bossHp = titanHp;
+        this.room.session.bossMaxHp = titanHp;
+      }
       this.room.collected = [];
       await this.saveRoom();
       this.broadcast(null, { type: 'room-start', session: this.room.session });
@@ -164,6 +171,11 @@ export class GlobalRoom {
           finishMission: !!deposit.finishMission
         }
       });
+    } else if (message.type === 'boss-hit' && this.room.session.gameMode === 'titan') {
+      const damage = boundedNumber(Number(message.damage), 0, 1, 500);
+      this.room.session.bossHp = Math.max(0, this.room.session.bossHp - damage);
+      await this.saveRoom();
+      this.broadcast(null, { type: 'boss-health', hp: this.room.session.bossHp });
     }
   }
 

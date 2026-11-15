@@ -68,9 +68,12 @@ wss.on('connection', socket => {
       relay(socket, { type: 'player-state', player: publicPlayer(player) });
     } else if (message.type === 'start') {
       if (player.id !== room.hostId) return send(socket, { type: 'error', message: 'Solo el anfitrión puede iniciar la partida.' });
-      const mapId = ['playa', 'bosque', 'rio', 'ciudad', 'manglar', 'puerto'].includes(message.session && message.session.mapId) ? message.session.mapId : 'playa';
       const difficulty = ['easy', 'medium', 'hard'].includes(message.session && message.session.difficulty) ? message.session.difficulty : 'medium';
-      room.session = { mapId, difficulty, seed: Math.floor(Math.random() * 2147483646) + 1 };
+      const gameMode = message.session && message.session.gameMode === 'titan' ? 'titan' : 'cleaning';
+      const mapId = gameMode === 'titan' ? 'boss_arena' : (['playa', 'bosque', 'rio', 'ciudad', 'manglar', 'puerto'].includes(message.session && message.session.mapId) ? message.session.mapId : 'playa');
+      const bossHp = ({ easy: 1800, medium: 2500, hard: 4375 })[difficulty];
+      room.session = { mapId, difficulty, gameMode, seed: Math.floor(Math.random() * 2147483646) + 1 };
+      if (gameMode === 'titan') { room.session.bossHp = bossHp; room.session.bossMaxHp = bossHp; }
       room.collected.clear();
       relay(null, { type: 'room-start', session: room.session });
     } else if (message.type === 'lobby') {
@@ -96,6 +99,10 @@ wss.on('connection', socket => {
     } else if (message.type === 'deposit' && room.session) {
       const deposit = message.deposit || {};
       relay(socket, { type: 'deposit', playerId: player.id, deposit: { count: Math.max(0, Math.min(1000, Number(deposit.count) || 0)), value: Math.max(0, Math.min(100000, Number(deposit.value) || 0)), finishMission: !!deposit.finishMission } });
+    } else if (message.type === 'boss-hit' && room.session && room.session.gameMode === 'titan') {
+      const damage = Math.max(1, Math.min(500, Number(message.damage) || 1));
+      room.session.bossHp = Math.max(0, room.session.bossHp - damage);
+      relay(null, { type: 'boss-health', hp: room.session.bossHp });
     }
   });
   socket.on('close', () => removePlayer(socket));

@@ -193,7 +193,7 @@ TrashGame.Gamepad = {
       this._fireTimer -= dt;
       if (this._fireTimer <= 0) {
         this._fireTimer = 0.28;
-        if (M.currentMode === 'BOSS' && M.onActionTrigger) M.onActionTrigger();
+        if ((M.currentMode === 'BOSS' || M.currentMode === 'MULTIPLAYER' && TrashGame.OnlineRoom && TrashGame.OnlineRoom.gameMode === 'titan') && M.onActionTrigger) M.onActionTrigger();
       }
     } else this._fireTimer = 0;
 

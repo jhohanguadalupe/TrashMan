@@ -11,6 +11,44 @@ TrashGame.OnlineRoom = {
   isConnected: false,
   sendTimer: 0,
   roomStarted: false,
+  gameMode: 'cleaning',
+  showHome() {
+    document.getElementById('online-room-home')?.classList.remove('hidden');
+    document.getElementById('online-room-create')?.classList.add('hidden');
+    document.getElementById('online-room-join')?.classList.add('hidden');
+  },
+  showCreate() {
+    document.getElementById('online-room-home')?.classList.add('hidden');
+    document.getElementById('online-room-create')?.classList.remove('hidden');
+    document.getElementById('online-room-join')?.classList.add('hidden');
+    if (this.isConnected && this.role === 'host') return;
+    this.createThenPrepare();
+  },
+  showJoin() {
+    document.getElementById('online-room-home')?.classList.add('hidden');
+    document.getElementById('online-room-create')?.classList.add('hidden');
+    document.getElementById('online-room-join')?.classList.remove('hidden');
+    document.getElementById('input-join-code')?.focus();
+  },
+  showRoomLobby(host) {
+    document.getElementById('online-room-home')?.classList.add('hidden');
+    document.getElementById('online-room-create')?.classList.remove('hidden');
+    document.getElementById('online-room-join')?.classList.add('hidden');
+    const controls = document.querySelector('#online-room-create .grid');
+    const start = document.getElementById('room-start-button');
+    if (controls) controls.classList.toggle('hidden', !host);
+    if (start) start.classList.toggle('hidden', !host);
+    if (!host) this.showStatus('Conectado. Espera a que el anfitrión elija el modo e inicie la partida.');
+  },
+  updateModeOptions() {
+    const titan = document.getElementById('room-game-mode')?.value === 'titan';
+    const mapLabel = document.getElementById('room-map-label');
+    const mapSelect = document.getElementById('room-map-select');
+    const start = document.getElementById('room-start-button');
+    if (mapLabel) mapLabel.classList.toggle('hidden', titan);
+    if (mapSelect) mapSelect.disabled = titan;
+    if (start) start.textContent = titan ? '⚔ Iniciar combate contra el Titán' : '▶ Iniciar partida de limpieza';
+  },
   createThenPrepare(mapId) {
     if (this.isConnected && this.role === 'host') {
       this.showStatus(`Sala ${this.roomCode} sigue abierta. Espera a tus compañeros y pulsa Iniciar cuando esté listo el equipo.`);
@@ -24,12 +62,15 @@ TrashGame.OnlineRoom = {
       this.showStatus(`Sala ${this.roomCode} lista. Comparte el enlace y espera al equipo antes de iniciar.`);
     }).catch(error => this.showStatus(error.message, true));
   },
-  startRoom(mapId) {
+  startRoom() {
     if (this.role !== 'host' || !this.isConnected) {
       this.showStatus('Primero crea la sala; solo su anfitrión puede iniciarla.', true);
       return;
     }
-    TrashGame.Main.prepareSession('multiplayer', mapId);
+    const gameMode = document.getElementById('room-game-mode')?.value === 'titan' ? 'titan' : 'cleaning';
+    const mapId = gameMode === 'titan' ? 'boss_arena' : (document.getElementById('room-map-select')?.value || 'playa');
+    const difficulty = document.getElementById('room-difficulty')?.value || 'medium';
+    this.startAsHost({ gameMode, mapId, difficulty });
   },
   endpoint() {
     const params = new URLSearchParams(location.search);
@@ -108,6 +149,7 @@ TrashGame.OnlineRoom = {
       this.playerId = message.id;
       this.players = new Map((message.players || []).map(player => [player.id, player]));
       this.renderPlayers();
+      this.showRoomLobby(true);
       this.showStatus(`Sala ${this.roomCode} creada · ${this.players.size}/16 jugadores`);
       if (this._pendingCreate) { this._pendingCreate.resolve(this.roomCode); this._pendingCreate = null; }
     } else if (message.type === 'joined') {
@@ -115,6 +157,7 @@ TrashGame.OnlineRoom = {
       this.roomCode = message.code;
       this.players = new Map((message.players || []).map(player => [player.id, player]));
       this.renderPlayers();
+      this.showRoomLobby(false);
       this.showStatus(`Conectado a ${this.roomCode}. Esperando al anfitrión · ${this.players.size}/16 jugadores`);
       this.publishProfile();
       if (message.session) this.startFromHost(message.session);
@@ -131,6 +174,8 @@ TrashGame.OnlineRoom = {
       this.renderPlayers();
     } else if (message.type === 'room-start') {
       if (this.role !== 'host') this.startFromHost(message.session);
+    } else if (message.type === 'boss-health') {
+      this.applyBossHealth(message.hp);
     } else if (message.type === 'room-lobby') {
       if (TrashGame.Main && TrashGame.Main.currentMode !== 'LOBBY') TrashGame.Main.exitToLobby();
     } else if (message.type === 'trash-collected') {
@@ -161,16 +206,32 @@ TrashGame.OnlineRoom = {
       return true;
     }
     this.roomStarted = true;
+    this.gameMode = session.gameMode === 'titan' ? 'titan' : 'cleaning';
     this.collectedTrash.clear();
     this.socket.send(JSON.stringify({ type: 'start', session }));
+    TrashGame.Main.difficulty = TrashGame.Difficulties[session.difficulty] ? session.difficulty : 'medium';
+    TrashGame.Main.startSession('multiplayer', session.mapId);
     return true;
   },
   startFromHost(session) {
     if (!session || !TrashGame.Difficulties[session.difficulty]) return;
     this.roomStarted = true;
+    this.gameMode = session.gameMode === 'titan' ? 'titan' : 'cleaning';
     this.collectedTrash.clear();
     TrashGame.Main.difficulty = session.difficulty;
     TrashGame.Main.startSession('multiplayer', session.mapId);
+  },
+  sendBossHit(damage) {
+    if (this.gameMode !== 'titan' || !this.isConnected || !this.roomStarted || !this.socket || this.socket.readyState !== WebSocket.OPEN) return false;
+    this.socket.send(JSON.stringify({ type: 'boss-hit', damage }));
+    return true;
+  },
+  applyBossHealth(hp) {
+    const boss = TrashGame.AdventureMode && TrashGame.AdventureMode.boss;
+    if (!boss || !Number.isFinite(hp)) return;
+    boss.hp = Math.max(0, Math.min(boss.maxHp, hp));
+    TrashGame.AdventureMode.updateBossHUD();
+    if (boss.hp <= 0) TrashGame.AdventureMode.victory();
   },
   publishProfile() {
     if (!this.isConnected || !this.socket || this.socket.readyState !== WebSocket.OPEN) return;
@@ -260,6 +321,7 @@ TrashGame.OnlineRoom = {
       if (input) input.value = code;
       const modal = document.getElementById('modal-multijugador');
       if (modal) modal.classList.remove('hidden');
+      this.showJoin();
     }
   }
 };

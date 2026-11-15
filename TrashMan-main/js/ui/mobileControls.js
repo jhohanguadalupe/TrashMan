@@ -152,7 +152,7 @@ TrashGame.MobileControls = {
     const cleaning = document.getElementById('mobile-clean-label');
     const cleanButton = document.querySelector('.mobile-action--clean');
     if (!main || !cleaning || !cleanButton) return;
-    const isBoss = main.currentMode === 'BOSS';
+    const isBoss = main.currentMode === 'BOSS' || main.currentMode === 'MULTIPLAYER' && TrashGame.OnlineRoom && TrashGame.OnlineRoom.gameMode === 'titan';
     cleanButton.classList.toggle('hidden', isBoss);
     cleaning.textContent = main.currentMode === 'MULTIPLAYER' ? 'LIMPIAR' : 'LIMPIAR';
     this.updateWeaponDisplay();
