@@ -11,6 +11,7 @@ window.TrashGame = window.TrashGame || {};
 TrashGame.WorldLife = {
   currentMapKey: null,
   entities: [],
+  vehicleHitCooldown: 0,
 
   clear(worldGroup) {
     this.entities.forEach(e => {
@@ -19,6 +20,7 @@ TrashGame.WorldLife = {
       }
     });
     this.entities = [];
+    this.vehicleHitCooldown = 0;
   },
 
   spawnForMap(mapId, worldGroup) {
@@ -352,7 +354,8 @@ TrashGame.WorldLife = {
         minX: -60,
         maxX: 60,
         wheels,
-        sirenMesh
+        sirenMesh,
+        hitCooldown: 0
       });
     });
 
@@ -559,6 +562,7 @@ TrashGame.WorldLife = {
   // BUCLE DE ACTUALIZACIÓN DINÁMICO (EJECUTADO EN CADA FRAME)
   // =========================================================================
   update(dt, time) {
+    this.vehicleHitCooldown = Math.max(0, this.vehicleHitCooldown - dt);
     this.entities.forEach(e => {
       if (e.type === 'walker') {
         // Mover bañistas a lo largo de la arena
@@ -588,6 +592,7 @@ TrashGame.WorldLife = {
         if (e.wingR) e.wingR.rotation.z = -flap;
 
       } else if (e.type === 'car') {
+        e.hitCooldown = Math.max(0, e.hitCooldown - dt);
         // Autos circulando en carriles continuous wrap
         e.mesh.position.x += e.dir * e.speed * dt;
         if (e.dir > 0 && e.mesh.position.x > e.maxX) {
@@ -664,5 +669,28 @@ TrashGame.WorldLife = {
         }
       }
     });
+  },
+
+  handleVehicleCollisions(playerPos, onPlayerHit) {
+    if ((this.currentMapKey !== 'ciudad' && this.currentMapKey !== 'puerto') || playerPos.y > 1.25 || this.vehicleHitCooldown > 0) return false;
+    for (const car of this.entities) {
+      if (car.type !== 'car' || car.hitCooldown > 0 || !car.mesh) continue;
+      const dx = playerPos.x - car.mesh.position.x;
+      const dz = playerPos.z - car.mesh.position.z;
+      // Cars are about 4.2 units long and 1.9 units wide; the ellipse keeps
+      // side swipes fair while allowing the player to cross an empty lane.
+      if ((dx * dx) / 7.6 + (dz * dz) / 1.8 > 1) continue;
+
+      const side = dz === 0 ? (Math.random() < 0.5 ? -1 : 1) : Math.sign(dz);
+      const knockback = new THREE.Vector3(car.dir * 7.2 + Math.sign(dx || car.dir) * 1.8, 5.4, side * 2.1);
+      const difficulty = TrashGame.Difficulties[TrashGame.Main && TrashGame.Main.difficulty] || TrashGame.Difficulties.medium;
+      const damage = Math.max(6, Math.round(12 * difficulty.monsterDamageMultiplier));
+      car.hitCooldown = 1.2;
+      this.vehicleHitCooldown = 0.85;
+      if (typeof onPlayerHit === 'function') onPlayerHit(damage, knockback);
+      if (TrashGame.UI && TrashGame.UI.showToast) TrashGame.UI.showToast('¡Atropellado! Mira antes de cruzar la avenida.', 'error');
+      return true;
+    }
+    return false;
   }
 };

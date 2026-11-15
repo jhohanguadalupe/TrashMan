@@ -864,6 +864,15 @@ TrashGame.Main = {
     // Update Dynamic Living World (Cars, Beachgoers, Animals, Seagulls)
     if (TrashGame.WorldLife) {
       TrashGame.WorldLife.update(dt, time);
+      if (this.currentMapId === 'ciudad' || this.currentMapId === 'puerto') {
+        TrashGame.WorldLife.handleVehicleCollisions(this.player.pos, this.player.vel, (damage, knockback) => {
+          if (knockback) {
+            this.player.vel.add(knockback);
+            this.player.isGrounded = false;
+          }
+          this.playerTakeDamage(damage);
+        });
+      }
     }
     if (TrashGame.Monsters && (TrashGame.Monsters.active.length || TrashGame.Monsters.projectiles.length)) {
       TrashGame.Monsters.update(time, dt, this.player.pos, this.worldGroup, this.camera, (dmg) => this.playerTakeDamage(dmg));
@@ -886,7 +895,11 @@ TrashGame.Main = {
         });
       }
     } else if (this.currentMode === 'BOSS') {
-      TrashGame.AdventureMode.update(this.player.pos, dt, this.worldGroup, this.camera, (dmg) => {
+      TrashGame.AdventureMode.update(this.player.pos, dt, this.worldGroup, this.camera, (dmg, knockback) => {
+        if (knockback) {
+          this.player.vel.add(knockback);
+          this.player.isGrounded = false;
+        }
         this.playerTakeDamage(dmg);
       });
     }
@@ -903,7 +916,7 @@ TrashGame.Main = {
     if (life) {
       life.forEach(entity => {
         const radiusByType = {
-          car: 1.45, walker: 0.36, pedestrian: 0.36, deer: 0.58,
+          walker: 0.36, pedestrian: 0.36, deer: 0.58,
           rabbit: 0.28, duck: 0.3, sunbather: 0.48
         };
         const radius = radiusByType[entity.type];

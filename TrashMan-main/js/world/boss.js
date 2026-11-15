@@ -20,6 +20,14 @@ TrashGame.Boss = class {
     this.isEnraged = false;
 
     this.shockwaves = [];
+    this.trashProjectiles = [];
+    this.trashThrowInterval = ({ easy: 7.2, medium: 5.1, hard: 3.5 }[difficultyId] || 5.1);
+    this.trashThrowTimer = 2.8;
+    this.trashProjectileGravity = 7.5;
+    this.trashProjectileGeometry = new THREE.IcosahedronGeometry(0.55, 1);
+    this.trashProjectileShardGeometry = new THREE.BoxGeometry(0.28, 0.16, 0.38);
+    this.trashProjectileMaterial = new THREE.MeshStandardMaterial({ color: 0x394044, roughness: 0.93, metalness: 0.28 });
+    this.trashProjectileGlowMaterial = new THREE.MeshStandardMaterial({ color: 0x78c84b, emissive: 0x4e9a35, emissiveIntensity: 1.5, roughness: 0.48 });
     this.leftArm = null;
     this.rightArm = null;
     this.core = null;
@@ -292,6 +300,8 @@ TrashGame.Boss = class {
       }
     }
 
+    this.updateTrashThrow(playerPos, dist, dt, onPlayerHit);
+
     // Update Expanding Ground Shockwaves
     for (let i = this.shockwaves.length - 1; i >= 0; i--) {
       const sw = this.shockwaves[i];
@@ -303,6 +313,78 @@ TrashGame.Boss = class {
       if (sw.life <= 0) {
         this.worldGroup.remove(sw.mesh);
         this.shockwaves.splice(i, 1);
+      }
+    }
+
+    this.updateTrashProjectiles(playerPos, dt, onPlayerHit);
+  }
+
+  updateTrashThrow(playerPos, distance, dt, onPlayerHit) {
+    if (this.hp <= 0 || this.state !== 'CHASE' || distance < 9 || distance > 38) return;
+    this.trashThrowTimer -= dt;
+    if (this.trashThrowTimer > 0) return;
+
+    this.trashThrowTimer = this.trashThrowInterval;
+    this.group.updateMatrixWorld(true);
+    const start = this.group.localToWorld(new THREE.Vector3(0, 3.9, 1.8));
+    const target = playerPos.clone().add(new THREE.Vector3(0, 0.85, 0));
+    const dx = target.x - start.x;
+    const dz = target.z - start.z;
+    const horizontalDistance = Math.hypot(dx, dz);
+    const flightTime = THREE.MathUtils.clamp(horizontalDistance / 16, 0.78, 1.65);
+    const velocity = new THREE.Vector3(
+      dx / flightTime,
+      (target.y - start.y + 0.5 * this.trashProjectileGravity * flightTime * flightTime) / flightTime,
+      dz / flightTime
+    );
+
+    const scrap = new THREE.Group();
+    const body = new THREE.Mesh(this.trashProjectileGeometry, this.trashProjectileMaterial);
+    body.castShadow = true;
+    scrap.add(body);
+    const glow = new THREE.Mesh(new THREE.SphereGeometry(0.16, 8, 6), this.trashProjectileGlowMaterial);
+    glow.position.set(0.1, 0.08, 0.12);
+    scrap.add(glow);
+    for (let i = 0; i < 3; i++) {
+      const shard = new THREE.Mesh(this.trashProjectileShardGeometry, this.trashProjectileMaterial);
+      const angle = i * Math.PI * 2 / 3;
+      shard.position.set(Math.cos(angle) * 0.42, Math.sin(angle * 2) * 0.2, Math.sin(angle) * 0.42);
+      shard.rotation.set(angle * 0.6, angle, angle * 0.4);
+      scrap.add(shard);
+    }
+    scrap.position.copy(start);
+    this.worldGroup.add(scrap);
+    this.trashProjectiles.push({ mesh: scrap, velocity, life: flightTime + 0.8, radius: 0.95 });
+  }
+
+  updateTrashProjectiles(playerPos, dt, onPlayerHit) {
+    const targetY = playerPos.y + 0.9;
+    for (let i = this.trashProjectiles.length - 1; i >= 0; i--) {
+      const projectile = this.trashProjectiles[i];
+      projectile.velocity.y -= this.trashProjectileGravity * dt;
+      projectile.mesh.position.addScaledVector(projectile.velocity, dt);
+      projectile.mesh.rotation.x += dt * 4.2;
+      projectile.mesh.rotation.y += dt * 5.1;
+      projectile.life -= dt;
+
+      const dx = projectile.mesh.position.x - playerPos.x;
+      const dy = projectile.mesh.position.y - targetY;
+      const dz = projectile.mesh.position.z - playerPos.z;
+      if (dx * dx + dy * dy + dz * dz < projectile.radius * projectile.radius) {
+        const horizontal = new THREE.Vector3(-dx, 0, -dz);
+        if (horizontal.lengthSq() < 0.01) horizontal.set(-projectile.velocity.x, 0, -projectile.velocity.z);
+        horizontal.normalize().multiplyScalar(6.8);
+        horizontal.y = 3.4;
+        const damage = Math.max(6, Math.round(12 * this.damageMultiplier));
+        if (onPlayerHit) onPlayerHit(damage, horizontal);
+        this.worldGroup.remove(projectile.mesh);
+        this.trashProjectiles.splice(i, 1);
+        continue;
+      }
+
+      if (projectile.life <= 0 || projectile.mesh.position.y < -0.25) {
+        this.worldGroup.remove(projectile.mesh);
+        this.trashProjectiles.splice(i, 1);
       }
     }
   }
@@ -346,6 +428,12 @@ TrashGame.Boss = class {
   }
 
   destroy() {
+    this.trashProjectiles.forEach(projectile => this.worldGroup.remove(projectile.mesh));
+    this.trashProjectiles = [];
+    this.trashProjectileGeometry.dispose();
+    this.trashProjectileShardGeometry.dispose();
+    this.trashProjectileMaterial.dispose();
+    this.trashProjectileGlowMaterial.dispose();
     this.shockwaves.forEach(sw => {
       this.worldGroup.remove(sw.mesh);
       if (sw.mesh.geometry) sw.mesh.geometry.dispose();
