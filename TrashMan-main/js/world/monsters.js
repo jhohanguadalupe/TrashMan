@@ -16,6 +16,8 @@ TrashGame.Monsters = {
     bosque: { rank: 2, ids: ['monstruo_n2_bosque_t', 'monstruo_n2_bosque_t'] },
     rio: { rank: 3, ids: ['monstruo_n3_rio_t', 'monstruo_n3_rio_t'] },
     ciudad: { rank: 4, ids: ['monstruo_n4_ciudad_t', 'monstruo_n4_ciudad_t'] },
+    manglar: { rank: 3, ids: ['monstruo_n3_rio_t', 'monstruo_n3_rio_t'] },
+    puerto: { rank: 4, ids: ['monstruo_n4_ciudad_t', 'monstruo_n4_ciudad_t'] },
     boss_arena: { rank: 4, ids: ['monstruo_n4_ciudad_t', 'monstruo_n4_ciudad_t'] }
   },
   positions: {
@@ -23,7 +25,9 @@ TrashGame.Monsters = {
     bosque: [[13, -12], [-14, -15]],
     rio: [[18, -10], [-19, -13]],
     ciudad: [[14, -12], [-16, -15], [18, 9], [-20, 12]],
-    boss_arena: [[-12, -8], [12, -8], [-13, 5], [13, 5]]
+    boss_arena: [[-12, -8], [12, -8], [-13, 5], [13, 5]],
+    manglar: [[18, -10], [-19, -13], [20, 12], [-18, 18]],
+    puerto: [[14, -12], [-16, -15], [18, 9], [-20, 12], [0, -28]]
   },
 
   clear(worldGroup) {
@@ -110,7 +114,8 @@ TrashGame.Monsters = {
       rio: ['pez_lata', 'anguila_petroleo', 'hidra_petroleo'],
       ciudad: ['robot_chatarra', 'mecha_reciclador', 'titan_chatarra']
     };
-    return names[mapId === 'boss_arena' ? 'ciudad' : mapId][tier - 1];
+    const rosterMap = mapId === 'boss_arena' || mapId === 'puerto' ? 'ciudad' : mapId === 'manglar' ? 'rio' : mapId;
+    return names[rosterMap][tier - 1];
   },
 
   fireShot(camera, playerPosition, worldGroup) {

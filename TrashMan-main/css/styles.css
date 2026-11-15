@@ -123,6 +123,13 @@ body {
   visibility: visible;
   pointer-events: auto;
 }
+#modal-victory:not(.hidden) {
+  display: flex !important;
+  z-index: 10020 !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+  pointer-events: auto !important;
+}
 
 .modal-card {
   transition: transform 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity 0.3s ease;

@@ -346,6 +346,7 @@ TrashGame.Main = {
 
   onActionTrigger() {
     if (this.currentMode === 'BOSS') {
+      if (TrashGame.Humans) TrashGame.Humans.triggerShoot(this.characterGroup);
       TrashGame.AdventureMode.firePlasma(this.characterGroup.position, this.cameraController.yaw, this.worldGroup);
     }
   },
@@ -357,8 +358,21 @@ TrashGame.Main = {
       return;
     }
     if ((this.currentMode === 'STORY' || this.currentMode === 'MULTIPLAYER') && TrashGame.Monsters) {
+      if (TrashGame.Humans) TrashGame.Humans.triggerShoot(this.characterGroup);
       TrashGame.Monsters.fireShot(this.camera, this.player.pos, this.worldGroup);
     }
+  },
+
+  showVictory() {
+    const modal = document.getElementById('modal-victory');
+    if (!modal) return;
+    document.querySelectorAll('.modal-backdrop').forEach(item => {
+      if (item !== modal) item.classList.add('hidden');
+    });
+    modal.classList.remove('hidden');
+    modal.setAttribute('aria-hidden', 'false');
+    const firstAction = modal.querySelector('button');
+    if (firstAction) firstAction.focus({ preventScroll: true });
   },
 
   prepareSession(modeType, mapId) {
@@ -407,6 +421,7 @@ TrashGame.Main = {
     const threeContainer = document.getElementById('three-container');
     if (threeContainer) threeContainer.style.opacity = '1';
     this.currentMode = modeType.toUpperCase();
+    if (modeType !== 'boss' && this.cameraController) this.cameraController.setFocus(null);
     this.currentMapId = mapId;
     this.isPaused = false;
     this.mobileInput.x = 0;
@@ -734,7 +749,7 @@ TrashGame.Main = {
     if (isMoving) {
       this.footstepTimer -= dt;
       if (this.footstepTimer <= 0) {
-        const step = { playa: 'paso_arena', bosque: 'paso_pasto', rio: 'paso_agua', ciudad: 'paso_ciudad', boss_arena: 'paso_ciudad' }[this.currentMapId] || 'paso_arena';
+        const step = { playa: 'paso_arena', bosque: 'paso_pasto', rio: 'paso_agua', ciudad: 'paso_ciudad', manglar: 'paso_agua', puerto: 'paso_ciudad', boss_arena: 'paso_ciudad' }[this.currentMapId] || 'paso_arena';
         TrashGame.Sound.playAsset(`gameplay/pasos/${step}`, 0.2);
         this.footstepTimer = sprint > 1 ? 0.31 : 0.46;
       }
@@ -770,6 +785,9 @@ TrashGame.Main = {
     // Smooth human locomotion (walk / run / jump / idle blend)
     if (TrashGame.Humans && !(TrashGame.Emotes && TrashGame.Emotes.activeEmote)) {
       TrashGame.Humans.animate(this.characterGroup, time, dt, isMoving, sprint, this.player.isGrounded);
+    }
+    if (TrashGame.Humans && !(TrashGame.Emotes && TrashGame.Emotes.activeEmote)) {
+      TrashGame.Humans.updateShootPose(this.characterGroup, dt);
     }
 
     // Jump & Gravity Physics

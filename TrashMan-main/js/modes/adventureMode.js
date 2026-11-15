@@ -31,6 +31,7 @@ TrashGame.AdventureMode = {
     document.getElementById('hud-map-title').textContent = 'Arena del Titán';
 
     this.boss = new TrashGame.Boss(worldGroup, TrashGame.Main.difficulty);
+    if (TrashGame.Main.cameraController) TrashGame.Main.cameraController.setFocus(this.boss.group.position, 3.4);
     this.updateBossHUD();
   },
 
@@ -227,7 +228,7 @@ TrashGame.AdventureMode = {
     document.getElementById('victory-coins').textContent = '+1,000 🪙';
     document.getElementById('victory-xp').textContent = '+2,000 XP';
 
-    document.getElementById('modal-victory').classList.remove('hidden');
+    TrashGame.Main.showVictory();
   },
 
   spawnBossTrophies() {
@@ -250,6 +251,7 @@ TrashGame.AdventureMode = {
 
   stop(worldGroup) {
     this.active = false;
+    if (TrashGame.Main && TrashGame.Main.cameraController) TrashGame.Main.cameraController.setFocus(null);
     this.trophies.forEach(tooth => worldGroup.remove(tooth));
     this.trophies = [];
     this.projectiles.forEach(p => worldGroup.remove(p.mesh));

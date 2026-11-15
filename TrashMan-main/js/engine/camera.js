@@ -81,6 +81,7 @@ TrashGame.CameraController = class {
     this._trauma = 0;
     this._shakeT = 0;
     this._focus = null;
+    this._focusOffsetY = 0;
     this._focusWeight = 0;
     this._tmpA = new THREE.Vector3();
     this._tmpB = new THREE.Vector3();
@@ -104,7 +105,10 @@ TrashGame.CameraController = class {
   }
 
   /** Mira suavemente hacia un punto (ej. el jefe). null para quitar. */
-  setFocus(vec3OrNull) { this._focus = vec3OrNull || null; }
+  setFocus(vec3OrNull, heightOffset = 0) {
+    this._focus = vec3OrNull || null;
+    this._focusOffsetY = this._focus ? heightOffset : 0;
+  }
 
   /** Coloca la camara de golpe detras del jugador (al empezar nivel / reaparecer). */
   snapBehind(playerPos, heading) {
@@ -179,6 +183,7 @@ TrashGame.CameraController = class {
 
     // ---- posicion ideal (esfera alrededor del jugador) ----
     const target = this._tmpB.copy(playerPos).add(this.targetOffset);      // punto que miramos
+    if (this._focus) target.set(this._focus.x, this._focus.y + this._focusOffsetY, this._focus.z);
     const cp = Math.cos(this.pitch), sp = Math.sin(this.pitch);
     const dirX = Math.sin(this.yaw) * cp, dirY = sp, dirZ = Math.cos(this.yaw) * cp;
     const pivotY = playerPos.y + 1.1;                                        // mismo pivote que la version original

@@ -64,6 +64,8 @@ TrashGame.MapBuilder = {
     bosque: { minX: -46, maxX: 46, minZ: -46, maxZ: 46 },
     rio: { minX: -46, maxX: 46, minZ: -46, maxZ: 46 },
     ciudad: { minX: -44, maxX: 44, minZ: -44, maxZ: 44 },
+    manglar: { minX: -46, maxX: 46, minZ: -46, maxZ: 46 },
+    puerto: { minX: -44, maxX: 44, minZ: -44, maxZ: 44 },
     boss_arena: { radius: 29.0 }
   },
 
@@ -136,8 +138,14 @@ TrashGame.MapBuilder = {
       this.buildBosque(worldGroup, trashManager);
     } else if (mapId === 'rio') {
       this.buildRio(worldGroup, trashManager);
+    } else if (mapId === 'manglar') {
+      this.buildRio(worldGroup, trashManager);
+      this.addMangroveLandmarks(worldGroup);
     } else if (mapId === 'ciudad') {
       this.buildCiudad(worldGroup, trashManager);
+    } else if (mapId === 'puerto') {
+      this.buildCiudad(worldGroup, trashManager);
+      this.addPortLandmarks(worldGroup);
     } else if (mapId === 'boss_arena') {
       this.buildBossArena(worldGroup);
     }
@@ -228,6 +236,57 @@ TrashGame.MapBuilder = {
     });
     group.add(station);
     this.addBoxCollider(spot[0], spot[1], 0.95, 0.78);
+  },
+
+  addMangroveLandmarks(group) {
+    const trunkMat = new THREE.MeshStandardMaterial({ color: 0x594a35, roughness: 0.96 });
+    const leafMat = new THREE.MeshStandardMaterial({ color: 0x315e45, roughness: 0.9 });
+    [-1, 1].forEach(side => {
+      [-31, -18, 18, 31].forEach((z, index) => {
+        const x = side * (20 + (index % 2) * 3);
+        const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.42, 4.8, 7), trunkMat);
+        trunk.position.set(x, 2.4, z);
+        trunk.castShadow = true;
+        group.add(trunk);
+        this.addCircleCollider(x, z, 0.48);
+        const crown = new THREE.Mesh(new THREE.IcosahedronGeometry(2.1, 1), leafMat);
+        crown.position.set(x, 5.2, z);
+        crown.scale.set(1.3, 0.8, 1.1);
+        crown.castShadow = true;
+        group.add(crown);
+        for (let root = -1; root <= 1; root++) {
+          const propRoot = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.16, 2.2, 6), trunkMat);
+          propRoot.position.set(x + root * 0.75, 0.78, z + 0.35);
+          propRoot.rotation.z = root * 0.42;
+          group.add(propRoot);
+        }
+      });
+    });
+  },
+
+  addPortLandmarks(group) {
+    const colors = [0x9c3f32, 0x315c70, 0x9b773b, 0x46534e];
+    const stacks = [
+      { x: -34, z: -26, count: 3 }, { x: 34, z: -26, count: 2 },
+      { x: -34, z: 26, count: 2 }, { x: 34, z: 26, count: 3 }
+    ];
+    const ribMat = new THREE.MeshStandardMaterial({ color: 0x1d2930, roughness: 0.7, metalness: 0.3 });
+    stacks.forEach((stack, stackIndex) => {
+      for (let row = 0; row < stack.count; row++) {
+        const material = new THREE.MeshStandardMaterial({ color: colors[(stackIndex + row) % colors.length], roughness: 0.76, metalness: 0.18 });
+        const container = new THREE.Mesh(new THREE.BoxGeometry(7.2, 2.8, 3.1), material);
+        container.position.set(stack.x, 1.4 + row * 2.85, stack.z + (row % 2) * 0.25);
+        container.castShadow = true;
+        container.receiveShadow = true;
+        group.add(container);
+        if (row === 0) this.addBoxCollider(stack.x, stack.z, 3.6, 1.55);
+        for (let rib = -3; rib <= 3; rib++) {
+          const detail = new THREE.Mesh(new THREE.BoxGeometry(0.065, 2.45, 0.07), ribMat);
+          detail.position.set(stack.x + rib * 0.92, 1.4 + row * 2.85, stack.z + 1.58);
+          group.add(detail);
+        }
+      }
+    });
   },
 
   createRadiantSun(group, pos = { x: 50, y: 65, z: -60 }, sunColor = 0xfff7ed) {

@@ -869,6 +869,29 @@ TrashGame.Humans = {
     }
   },
 
+  triggerShoot(group) {
+    const u = group && group.userData;
+    if (!u) return;
+    if (!u._shootPose) {
+      u._shootPose = {
+        arm: u.rightArm ? u.rightArm.rotation.x : 0,
+        elbow: u.rightElbow ? u.rightElbow.rotation.x : 0,
+        torso: u.torso ? u.torso.rotation.x : 0
+      };
+    }
+    u._shootTimer = 0.3;
+  },
+
+  updateShootPose(group, dt) {
+    const u = group && group.userData;
+    if (!u || !u._shootTimer || !u._shootPose) return;
+    u._shootTimer = Math.max(0, u._shootTimer - Math.max(0, dt || 0));
+    const recoil = Math.sin((1 - u._shootTimer / 0.3) * Math.PI);
+    if (u.rightArm) u.rightArm.rotation.x = u._shootPose.arm - recoil * 0.72;
+    if (u.rightElbow) u.rightElbow.rotation.x = u._shootPose.elbow - recoil * 0.38;
+    if (u.torso) u.torso.rotation.x = u._shootPose.torso - recoil * 0.08;
+  },
+
   // -----------------------------------------------------------------------
   // UI — roster cards (the 8 heroes beyond the two original cards)
   // -----------------------------------------------------------------------

@@ -31,7 +31,9 @@ TrashGame.StoryMode = {
 
     const data = TrashGame.MapsData[mapId] || TrashGame.MapsData.playa;
     const difficulty = TrashGame.Difficulties[TrashGame.Main.difficulty] || TrashGame.Difficulties.medium;
-    this.totalTrash = Math.max(1, Math.round(data.totalTrash * difficulty.trashMultiplier));
+    const configuredGoal = Math.max(1, Math.round(data.totalTrash * difficulty.trashMultiplier));
+    const availableTrash = trashManager && Array.isArray(trashManager.items) ? trashManager.items.length : configuredGoal;
+    this.totalTrash = Math.min(configuredGoal, availableTrash);
     const upgrades = TrashGame.State.player.upgrades || {};
     this.pendingCapacity = difficulty.bagCapacity + (upgrades.backpackLevel || 0) * 12;
 
@@ -174,6 +176,6 @@ TrashGame.StoryMode = {
     document.getElementById('victory-coins').textContent = `+${this.coinsGained + data.rewardCoins} 🪙`;
     document.getElementById('victory-xp').textContent = `+${data.rewardXp} XP`;
 
-    document.getElementById('modal-victory').classList.remove('hidden');
+    TrashGame.Main.showVictory();
   }
 };
