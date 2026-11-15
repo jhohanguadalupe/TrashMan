@@ -1,0 +1,14 @@
+# Do not upload the downloadable project archive as a Worker asset (it exceeds 25 MiB).
+*.zip
+
+# Development/server files are kept in the project but are not browser assets.
+server/
+assets/reference/
+assets/shaders/unity-reference/
+assets/tools/
+
+# The v1/v2 model packs and OBJ exports are source files; v3's generated JS is used by the game.
+assets/models/trashman-pack/
+assets/models/trashman-pack-v2/
+assets/models/trashman-pack-v3/out/*.obj
+assets/models/trashman-pack-v3/out/visor.html
