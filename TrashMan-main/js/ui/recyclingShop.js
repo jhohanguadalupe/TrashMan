@@ -5,6 +5,7 @@ TrashGame.Shop = {
   opened: false,
   stationRadius: 5.2,
   lastDistanceLabel: '',
+  autoOpenedForFullBag: false,
 
   getWeaponPrice(item) {
     const data = window.TM_TOOL_DATA && window.TM_TOOL_DATA.find(tool => tool.id === item.id);
@@ -26,13 +27,20 @@ TrashGame.Shop = {
     if (!station) return;
     const distance = Math.hypot(position.x - station.x, position.z - station.z);
     const near = distance <= this.stationRadius;
-    const text = near ? 'TIENDA ABIERTA' : `${Math.ceil(distance)} m`;
+    const modeState = TrashGame.StoryMode;
+    const needsDeposit = modeState && (modeState.isAtCapacity() || modeState.waitingForDeposit);
+    const text = near ? (needsDeposit ? 'VENDER · ABRIR' : 'TIENDA ABIERTA')
+      : (modeState && modeState.isAtCapacity() ? `LLENA · ${Math.ceil(distance)} m` : `${Math.ceil(distance)} m`);
     if (this.lastDistanceLabel !== text) {
       label.textContent = text;
       this.lastDistanceLabel = text;
     }
-    button.title = near ? 'Abrir tienda y depositar residuos' : `Acércate a la estación de reciclaje (${Math.ceil(distance)} m)`;
+    button.title = near ? 'Abrir tienda, vender residuos y comprar mejoras' : `Lleva la mochila a la estación de reciclaje (${Math.ceil(distance)} m)`;
     button.classList.toggle('is-shop-near', near);
+    if (near && needsDeposit && !this.autoOpenedForFullBag && !this.opened && !TrashGame.Main.isPaused && !TrashGame.Main.player.isDead) {
+      this.autoOpenedForFullBag = true;
+      this.open();
+    }
   },
 
   open() {
@@ -46,6 +54,7 @@ TrashGame.Shop = {
     }
     if (main.isPaused || main.player.isDead) return;
     this.opened = true;
+    if (TrashGame.StoryMode && (TrashGame.StoryMode.isAtCapacity() || TrashGame.StoryMode.waitingForDeposit)) this.autoOpenedForFullBag = true;
     main.isPaused = true;
     if (TrashGame.MobileControls) TrashGame.MobileControls.releaseAll();
     TrashGame.UI.openModal('modal-recycling-shop');
@@ -164,7 +173,11 @@ TrashGame.Shop = {
     upgrades[table.key] = level + 1;
     TrashGame.State.save();
     TrashGame.Sound.playAsset('gameplay/powerup', 0.55);
-    if (TrashGame.StoryMode.active) TrashGame.StoryMode.pendingCapacity = TrashGame.Difficulties[TrashGame.Main.difficulty].bagCapacity + upgrades.backpackLevel * 12;
+    if (TrashGame.StoryMode.active) {
+      TrashGame.StoryMode.pendingCapacity = TrashGame.Difficulties[TrashGame.Main.difficulty].bagCapacity + upgrades.backpackLevel * 12;
+      TrashGame.StoryMode.updateHUD();
+      this.autoOpenedForFullBag = false;
+    }
     TrashGame.UI.showToast(id === 'vacuum' ? 'Bioaspirador mejorado: mayor alcance.' : 'Mochila mejorada: más espacio para reciclar.', 'success');
     this.render();
   },
@@ -200,8 +213,14 @@ TrashGame.Shop = {
     TrashGame.State.addCoins(result.value);
     if (TrashGame.OnlineRoom) TrashGame.OnlineRoom.sendDeposit(result);
     TrashGame.UI.showToast(`Reciclaste ${result.count} piezas y ganaste ${result.value} monedas.`, 'success');
-    this.close();
-    if (result.finishMission) mode.victory();
+    this.autoOpenedForFullBag = false;
+    if (result.finishMission) {
+      this.close();
+      mode.victory();
+      return;
+    }
+    // Keep the station open so the player can spend the sale proceeds right away.
+    this.render();
   },
 
   close() {
@@ -218,6 +237,7 @@ TrashGame.Shop = {
   reset() {
     if (this.opened) this.close();
     this.lastDistanceLabel = '';
+    this.autoOpenedForFullBag = false;
     const button = document.getElementById('recycling-shop-button');
     if (button) button.classList.add('hidden');
   }

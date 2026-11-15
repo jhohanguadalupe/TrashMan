@@ -576,7 +576,9 @@ button:focus-visible {
   #game-hud > .absolute.top-4 > :last-child { grid-column: 2; grid-row: 1; gap: 5px; }
   #game-hud > .absolute.top-4 > :last-child > .glass-panel { padding: 6px 8px; }
   #game-hud > .absolute.top-4 > :last-child > button { width: 34px; height: 34px; }
-  #game-hud > .absolute.top-4 > :last-child #recycling-shop-button { display: none; }
+  #game-hud > .absolute.top-4 > :last-child { max-width: min(48vw, 220px); flex-wrap: wrap; justify-content: flex-end; }
+  #game-hud > .absolute.top-4 > :last-child #recycling-shop-button:not(.hidden) { display: inline-flex; min-height: 32px; max-width: 100%; padding: 0 7px; font-size: 8px; }
+  #recycling-shop-distance { overflow: hidden; max-width: 90px; text-overflow: ellipsis; white-space: nowrap; }
   .mobile-weapon-dock { bottom: max(132px, calc(126px + env(safe-area-inset-bottom))); }
   .mobile-joystick { width: clamp(94px, 25vw, 120px); }
   .mobile-action-pad { grid-template-columns: repeat(2, clamp(48px, 13vw, 60px)); gap: 5px; }

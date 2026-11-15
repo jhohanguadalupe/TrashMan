@@ -17,6 +17,7 @@ TrashGame.StoryMode = {
   capacityToastShown: false,
 
   start(mapId, trashManager) {
+    if (TrashGame.Shop) TrashGame.Shop.autoOpenedForFullBag = false;
     this.active = true;
     this.mapId = mapId;
     this.trashCollected = 0;
@@ -109,10 +110,23 @@ TrashGame.StoryMode = {
   },
 
   updateRadar(playerPos, trashManager) {
+    const needsDeposit = this.isAtCapacity() || this.waitingForDeposit;
     const closest = trashManager.getClosest(playerPos);
     const radarArrow = document.getElementById('radar-arrow-icon');
     const radarDist = document.getElementById('radar-distance-text');
     if (!radarArrow || !radarDist) return;
+
+    if (needsDeposit) {
+      const map = TrashGame.MapsData[this.mapId];
+      const station = map && map.recyclingStation;
+      if (station) {
+        const dx = station.x - playerPos.x;
+        const dz = station.z - playerPos.z;
+        radarArrow.style.transform = `rotate(${Math.atan2(dx, dz) * (180 / Math.PI)}deg)`;
+        radarDist.textContent = `TIENDA ${Math.round(Math.hypot(dx, dz))}m`;
+        return;
+      }
+    }
 
     if (closest.item) {
       const angle = Math.atan2(closest.item.mesh.position.x - playerPos.x, closest.item.mesh.position.z - playerPos.z);
