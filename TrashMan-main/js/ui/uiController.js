@@ -188,6 +188,15 @@ TrashGame.UI = {
     if (TrashGame.InventoryPreview) {
       TrashGame.InventoryPreview.updateModel(this._tempEquipped);
     }
+    // Mirror the live preview on the lobby character immediately; closing
+    // without saving restores the persisted outfit as before.
+    if (TrashGame.Main && TrashGame.Main.currentMode === 'LOBBY' && TrashGame.CharacterBuilder) {
+      TrashGame.CharacterBuilder.build(
+        TrashGame.Main.characterGroup,
+        TrashGame.State.player.character,
+        this._tempEquipped
+      );
+    }
   },
 
   equipItem(cat, id) {

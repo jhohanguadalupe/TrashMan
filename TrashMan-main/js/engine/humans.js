@@ -585,6 +585,38 @@ TrashGame.Humans = {
     u.leftLeg = parts.legL || null;
     u.rightLeg = parts.legR || null;
     u.weapon = parts.weapon || null;
+
+    // The supplied low-poly hero model is used for the lobby preview as well
+    // as gameplay. Apply the selected clothing colors to its vertex colors so
+    // equipped torso, trousers, and boots remain visible on this model path.
+    const equippedColor = (slot) => {
+      const item = equipped && TrashGame.Items && TrashGame.Items.find(entry => entry.id === equipped[slot]);
+      return item ? new THREE.Color(item.color) : null;
+    };
+    const tintPart = (part, color, vertexFilter = null) => {
+      if (!part || !color) return;
+      part.traverse(node => {
+        if (!node.isMesh || !node.geometry || !node.geometry.attributes.color || !node.geometry.attributes.position) return;
+        const colors = node.geometry.attributes.color;
+        const positions = node.geometry.attributes.position;
+        for (let i = 0; i < colors.count; i++) {
+          const y = positions.getY(i);
+          if (vertexFilter && !vertexFilter(y)) continue;
+          const r = colors.getX(i), g = colors.getY(i), b = colors.getZ(i);
+          const shade = Math.max(0.3, Math.min(1.15, r * 0.24 + g * 0.68 + b * 0.08));
+          colors.setXYZ(i, color.r * shade, color.g * shade, color.b * shade);
+        }
+        colors.needsUpdate = true;
+      });
+    };
+    tintPart(parts.torso, equippedColor('torso'));
+    // The pack combines trousers and footwear in each leg mesh; tint the lower
+    // boot section separately and keep the upper section as the selected pants.
+    for (const leg of [parts.legL, parts.legR]) {
+      tintPart(leg, equippedColor('legs'), y => y >= -0.7);
+      tintPart(leg, equippedColor('feet'), y => y < -0.7);
+    }
+
     if (u.headGroup && equipped && window.TM.buildStatic) {
       const headModelId = equipped.head === 'cap_green'
         ? 'prop_gorra_recicla'
@@ -594,6 +626,36 @@ TrashGame.Humans = {
         headProp.scale.setScalar(headModelId === 'prop_casco_soldador' ? 0.9 : 1.05);
         headProp.position.y = 0.08;
         u.headGroup.add(headProp);
+      }
+    }
+    if (u.headGroup && equipped) {
+      const headItem = TrashGame.Items && TrashGame.Items.find(item => item.id === equipped.head);
+      if (headItem && ['visor_holo', 'crown_leaf'].includes(equipped.head)) {
+        const wearable = new THREE.Group();
+        const tint = new THREE.Color(headItem.color);
+        if (equipped.head === 'visor_holo') {
+          const lensMat = new THREE.MeshStandardMaterial({ color: tint, emissive: tint, emissiveIntensity: 0.42, transparent: true, opacity: 0.78, metalness: 0.32, roughness: 0.18 });
+          const frameMat = new THREE.MeshStandardMaterial({ color: 0x253844, metalness: 0.72, roughness: 0.28 });
+          const lens = new THREE.Mesh(new THREE.BoxGeometry(0.31, 0.105, 0.055), lensMat);
+          lens.position.set(0, 0.015, 0.145);
+          const frame = new THREE.Mesh(new THREE.BoxGeometry(0.345, 0.035, 0.07), frameMat);
+          frame.position.set(0, -0.045, 0.145);
+          wearable.add(lens, frame);
+        } else {
+          const gold = new THREE.MeshStandardMaterial({ color: tint, metalness: 0.72, roughness: 0.26, emissive: tint, emissiveIntensity: 0.12 });
+          const band = new THREE.Mesh(new THREE.TorusGeometry(0.145, 0.018, 8, 28), gold);
+          band.rotation.x = Math.PI / 2;
+          band.position.y = 0.09;
+          wearable.add(band);
+          for (let i = 0; i < 5; i++) {
+            const angle = (i / 5) * Math.PI * 2;
+            const leaf = new THREE.Mesh(new THREE.SphereGeometry(0.042, 8, 6), gold);
+            leaf.scale.set(0.58, 1.7, 0.5);
+            leaf.position.set(Math.cos(angle) * 0.13, 0.14 + (i % 2) * 0.025, Math.sin(angle) * 0.13);
+            wearable.add(leaf);
+          }
+        }
+        u.headGroup.add(wearable);
       }
     }
     if (u.weapon) {

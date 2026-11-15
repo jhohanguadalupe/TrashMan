@@ -51,9 +51,9 @@ TrashGame.Sound = {
     } catch (error) { return false; }
   },
 
-  playDamageSound(volume = 0.72) {
+  playDamageSound(volume = 1) {
     if (this.muted || typeof Audio === 'undefined') return false;
-    const url = 'assets/sounds/gameplay/player_damage.mpeg';
+    const url = 'assets/sounds/gameplay/player_damage.mp3';
     try {
       let source = this.assetCache[url];
       if (!source) {
@@ -63,7 +63,7 @@ TrashGame.Sound = {
       }
       const voice = source.cloneNode();
       voice.volume = Math.max(0, Math.min(1, volume));
-      voice.play().catch(() => {});
+      voice.play().catch(error => console.warn('[Sound] No se pudo reproducir el audio de daño:', error));
       return true;
     } catch (error) { return false; }
   },
