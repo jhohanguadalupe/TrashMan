@@ -36,7 +36,10 @@ TrashGame.OnlineRoom = {
     const configured = params.get('ws');
     if (configured) return configured;
     const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
-    return `${protocol}//${location.hostname}:8080`;
+    if (/^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname) && location.port && location.port !== '8080') {
+      return `${protocol}//${location.hostname}:8080`;
+    }
+    return `${protocol}//${location.host}`;
   },
   connect() {
     if (this.socket && this.socket.readyState === WebSocket.OPEN) return Promise.resolve(this.socket);

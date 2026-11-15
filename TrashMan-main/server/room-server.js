@@ -1,8 +1,84 @@
 const { WebSocketServer } = require('ws');
+const fs = require('node:fs');
+const http = require('node:http');
+const path = require('node:path');
 
 const port = Number(process.env.PORT || 8080);
-const wss = new WebSocketServer({ port, maxPayload: 16 * 1024 });
+const publicRoot = path.resolve(__dirname, '..');
+const publicDirectories = new Set(['assets', 'css', 'js']);
+const mimeTypes = {
+  '.css': 'text/css; charset=utf-8',
+  '.glb': 'model/gltf-binary',
+  '.gltf': 'model/gltf+json',
+  '.html': 'text/html; charset=utf-8',
+  '.jpeg': 'image/jpeg',
+  '.jpg': 'image/jpeg',
+  '.js': 'text/javascript; charset=utf-8',
+  '.json': 'application/json; charset=utf-8',
+  '.mp3': 'audio/mpeg',
+  '.obj': 'text/plain; charset=utf-8',
+  '.ogg': 'audio/ogg',
+  '.png': 'image/png',
+  '.svg': 'image/svg+xml',
+  '.wasm': 'application/wasm',
+  '.webp': 'image/webp',
+};
+const server = http.createServer((request, response) => {
+  if (request.method !== 'GET' && request.method !== 'HEAD') {
+    response.writeHead(405, { Allow: 'GET, HEAD' }).end('Method not allowed');
+    return;
+  }
+
+  let pathname;
+  try {
+    pathname = decodeURIComponent(new URL(request.url, 'http://localhost').pathname);
+  } catch (_) {
+    response.writeHead(400).end('Bad request');
+    return;
+  }
+
+  const firstSegment = pathname.split('/').filter(Boolean)[0];
+  if (pathname !== '/' && pathname !== '/index.html' && !publicDirectories.has(firstSegment)) {
+    response.writeHead(404).end('Not found');
+    return;
+  }
+
+  const filename = path.resolve(publicRoot, `.${pathname}`);
+  if (!filename.startsWith(`${publicRoot}${path.sep}`) && filename !== publicRoot) {
+    response.writeHead(403).end('Forbidden');
+    return;
+  }
+
+  fs.stat(filename, (error, stat) => {
+    if (error) {
+      response.writeHead(404).end('Not found');
+      return;
+    }
+    const target = stat.isDirectory() ? path.join(filename, 'index.html') : filename;
+    fs.stat(target, (targetError, targetStat) => {
+      if (targetError || !targetStat.isFile()) {
+        response.writeHead(404).end('Not found');
+        return;
+      }
+      response.writeHead(200, {
+        'Content-Length': targetStat.size,
+        'Content-Type': mimeTypes[path.extname(target).toLowerCase()] || 'application/octet-stream',
+        'X-Content-Type-Options': 'nosniff',
+      });
+      if (request.method === 'HEAD') {
+        response.end();
+        return;
+      }
+      fs.createReadStream(target).pipe(response);
+    });
+  });
+});
+const wss = new WebSocketServer({ noServer: true, maxPayload: 16 * 1024 });
 let room = null;
+
+server.on('upgrade', (request, socket, head) => {
+  wss.handleUpgrade(request, socket, head, webSocket => wss.emit('connection', webSocket, request));
+});
 
 function send(socket, message) {
   if (socket.readyState === 1) socket.send(JSON.stringify(message));
@@ -101,4 +177,4 @@ wss.on('connection', socket => {
   socket.on('close', () => removePlayer(socket));
 });
 
-console.log(`Trash Man room server ready on ws://0.0.0.0:${port}`);
+server.listen(port, '0.0.0.0', () => console.log(`Trash Man game server ready on http://0.0.0.0:${port}`));
