@@ -29,13 +29,13 @@ TrashGame.Shop = {
     const near = distance <= this.stationRadius;
     const modeState = TrashGame.StoryMode;
     const needsDeposit = modeState && (modeState.isAtCapacity() || modeState.waitingForDeposit);
-    const text = near ? (needsDeposit ? 'VENDER · ABRIR' : 'TIENDA ABIERTA')
-      : (modeState && modeState.isAtCapacity() ? `LLENA · ${Math.ceil(distance)} m` : `${Math.ceil(distance)} m`);
+    const text = near ? (needsDeposit ? 'VENDER · COMPRAR' : 'TIENDA')
+      : (modeState && modeState.isAtCapacity() ? `LLENA · TIENDA` : `TIENDA · ${Math.ceil(distance)} m`);
     if (this.lastDistanceLabel !== text) {
       label.textContent = text;
       this.lastDistanceLabel = text;
     }
-    button.title = near ? 'Abrir tienda, vender residuos y comprar mejoras' : `Lleva la mochila a la estación de reciclaje (${Math.ceil(distance)} m)`;
+    button.title = 'Abrir la tienda de este mapa para vender residuos y comprar herramientas';
     button.classList.toggle('is-shop-near', near);
     if (near && needsDeposit && !this.autoOpenedForFullBag && !this.opened && !TrashGame.Main.isPaused && !TrashGame.Main.player.isDead) {
       this.autoOpenedForFullBag = true;
@@ -46,12 +46,6 @@ TrashGame.Shop = {
   open() {
     const main = TrashGame.Main;
     if (!main || !['STORY', 'MULTIPLAYER'].includes(main.currentMode)) return;
-    const station = TrashGame.MapsData[main.currentMapId] && TrashGame.MapsData[main.currentMapId].recyclingStation;
-    const distance = station ? Math.hypot(main.player.pos.x - station.x, main.player.pos.z - station.z) : Infinity;
-    if (distance > this.stationRadius) {
-      TrashGame.UI.showToast(`La estación está a ${Math.ceil(distance)} m. Acércate al contenedor verde.`, 'info');
-      return;
-    }
     if (main.isPaused || main.player.isDead) return;
     this.opened = true;
     if (TrashGame.StoryMode && (TrashGame.StoryMode.isAtCapacity() || TrashGame.StoryMode.waitingForDeposit)) this.autoOpenedForFullBag = true;

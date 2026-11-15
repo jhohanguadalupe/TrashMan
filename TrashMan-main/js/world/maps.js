@@ -150,20 +150,76 @@ TrashGame.MapBuilder = {
   },
 
   addRecyclingStation(group, mapId) {
-    if (!window.TM_MODELS || !window.TM || !window.TM.buildStatic) return;
     const stationSpot = TrashGame.MapsData[mapId] && TrashGame.MapsData[mapId].recyclingStation;
     const spot = stationSpot ? [stationSpot.x, stationSpot.z] : null;
     if (!spot) return;
     const station = new THREE.Group();
     station.position.set(spot[0], 0, spot[1]);
-    const bin = window.TM.buildStatic(THREE, 'herramienta_contenedor_reciclaje');
-    bin.scale.setScalar(1.25);
-    station.add(bin);
-    const bag = window.TM.buildStatic(THREE, 'herramienta_bolsa_basura');
-    bag.scale.setScalar(0.85);
-    bag.position.set(0.78, 0, 0.14);
-    bag.rotation.y = 0.35;
-    station.add(bag);
+    if (window.TM_MODELS && window.TM && window.TM.buildStatic && window.TM_MODELS.herramienta_contenedor_reciclaje) {
+      const bin = window.TM.buildStatic(THREE, 'herramienta_contenedor_reciclaje');
+      bin.scale.setScalar(1.25);
+      station.add(bin);
+      if (window.TM_MODELS.herramienta_bolsa_basura) {
+        const bag = window.TM.buildStatic(THREE, 'herramienta_bolsa_basura');
+        bag.scale.setScalar(0.85);
+        bag.position.set(0.78, 0, 0.14);
+        bag.rotation.y = 0.35;
+        station.add(bag);
+      }
+    } else {
+      // Local procedural fallback keeps the station visible if optional model assets fail to load.
+      const bodyMat = new THREE.MeshStandardMaterial({ color: 0x28744b, roughness: 0.78, metalness: 0.12 });
+      const trimMat = new THREE.MeshStandardMaterial({ color: 0x162b23, roughness: 0.62, metalness: 0.35 });
+      const glowMat = new THREE.MeshStandardMaterial({ color: 0x9bed77, emissive: 0x62cf6f, emissiveIntensity: 0.6, roughness: 0.38 });
+      const body = new THREE.Mesh(new THREE.BoxGeometry(0.95, 1.08, 0.78), bodyMat);
+      body.position.y = 0.62;
+      body.castShadow = true;
+      body.receiveShadow = true;
+      station.add(body);
+      const lid = new THREE.Mesh(new THREE.BoxGeometry(1.04, 0.13, 0.85), trimMat);
+      lid.position.set(0, 1.22, 0);
+      station.add(lid);
+      const front = new THREE.Mesh(new THREE.BoxGeometry(0.68, 0.28, 0.035), trimMat);
+      front.position.set(0, 0.92, 0.407);
+      station.add(front);
+      const recycleMark = new THREE.Mesh(new THREE.TorusGeometry(0.14, 0.035, 8, 24), glowMat);
+      recycleMark.position.set(0, 0.93, 0.435);
+      station.add(recycleMark);
+      for (const x of [-0.37, 0.37]) {
+        const wheel = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 0.08, 12), trimMat);
+        wheel.rotation.z = Math.PI / 2;
+        wheel.position.set(x, 0.14, 0.08);
+        station.add(wheel);
+      }
+      for (const x of [-0.4, 0.4]) {
+        const stripe = new THREE.Mesh(new THREE.BoxGeometry(0.055, 0.72, 0.025), glowMat);
+        stripe.position.set(x, 0.64, 0.405);
+        station.add(stripe);
+      }
+    }
+
+    const signCanvas = document.createElement('canvas');
+    signCanvas.width = 512;
+    signCanvas.height = 128;
+    const context = signCanvas.getContext('2d');
+    if (context) {
+      context.fillStyle = 'rgba(5, 22, 16, 0.9)';
+      context.fillRect(0, 0, 512, 128);
+      context.strokeStyle = '#89e69a';
+      context.lineWidth = 8;
+      context.strokeRect(5, 5, 502, 118);
+      context.fillStyle = '#b6f3b1';
+      context.font = 'bold 39px sans-serif';
+      context.textAlign = 'center';
+      context.textBaseline = 'middle';
+      context.fillText('♻  PUNTO LIMPIO · TIENDA', 256, 65);
+      const signTexture = new THREE.CanvasTexture(signCanvas);
+      signTexture.encoding = THREE.sRGBEncoding;
+      const sign = new THREE.Sprite(new THREE.SpriteMaterial({ map: signTexture, transparent: true, depthTest: false }));
+      sign.position.set(0, 2.05, 0);
+      sign.scale.set(3.4, 0.85, 1);
+      station.add(sign);
+    }
     station.traverse(node => {
       if (node.isMesh) {
         node.castShadow = false;
