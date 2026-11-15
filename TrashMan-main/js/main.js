@@ -371,8 +371,15 @@ TrashGame.Main = {
     });
     modal.classList.remove('hidden');
     modal.setAttribute('aria-hidden', 'false');
+    modal.style.display = 'flex';
+    modal.style.visibility = 'visible';
+    modal.style.opacity = '1';
+    modal.style.pointerEvents = 'auto';
+    modal.style.zIndex = '10020';
     const firstAction = modal.querySelector('button');
-    if (firstAction) firstAction.focus({ preventScroll: true });
+    if (firstAction) {
+      try { firstAction.focus({ preventScroll: true }); } catch (_) { firstAction.focus(); }
+    }
   },
 
   prepareSession(modeType, mapId) {
@@ -410,7 +417,15 @@ TrashGame.Main = {
     TrashGame.Sound.stopDeath();
     TrashGame.Sound.playFanfare();
 
-    document.querySelectorAll('.modal-backdrop').forEach(m => m.classList.add('hidden'));
+    document.querySelectorAll('.modal-backdrop').forEach(m => {
+      m.classList.add('hidden');
+      m.style.removeProperty('display');
+      m.style.removeProperty('visibility');
+      m.style.removeProperty('opacity');
+      m.style.removeProperty('pointer-events');
+      m.style.removeProperty('z-index');
+      m.setAttribute('aria-hidden', 'true');
+    });
     document.getElementById('lobby-ui').classList.add('opacity-0', 'pointer-events-none');
     document.getElementById('game-hud').classList.remove('hidden');
 
@@ -517,7 +532,15 @@ TrashGame.Main = {
     TrashGame.Sound.playClick();
     if (document.exitPointerLock) document.exitPointerLock();
 
-    document.querySelectorAll('.modal-backdrop').forEach(m => m.classList.add('hidden'));
+    document.querySelectorAll('.modal-backdrop').forEach(m => {
+      m.classList.add('hidden');
+      m.style.removeProperty('display');
+      m.style.removeProperty('visibility');
+      m.style.removeProperty('opacity');
+      m.style.removeProperty('pointer-events');
+      m.style.removeProperty('z-index');
+      m.setAttribute('aria-hidden', 'true');
+    });
     document.getElementById('game-hud').classList.add('hidden');
     document.getElementById('lobby-ui').classList.remove('opacity-0', 'pointer-events-none');
 

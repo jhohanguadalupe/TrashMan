@@ -73,6 +73,11 @@ TrashGame.AdventureMode = {
   },
 
   update(playerPos, dt, worldGroup, camera, onPlayerHit) {
+    // Recover victory even if the lethal projectile interrupted another UI/effect callback.
+    if (this.boss && this.boss.hp <= 0 && !this.completed) {
+      this.victory();
+      return;
+    }
     if (!this.active || !this.boss) return;
 
     // 1. Update Boss AI & Attacks
@@ -204,31 +209,30 @@ TrashGame.AdventureMode = {
     this.completed = true;
     this.active = false;
     const shopModal = document.getElementById('modal-recycling-shop');
-    if (TrashGame.Shop && (TrashGame.Shop.opened || shopModal && !shopModal.classList.contains('hidden'))) TrashGame.Shop.close();
+    if (TrashGame.Shop && (TrashGame.Shop.opened || shopModal && !shopModal.classList.contains('hidden'))) {
+      try { TrashGame.Shop.close(); } catch (error) { console.warn('[Victory] No se pudo cerrar la tienda.', error); }
+    }
     if (TrashGame.MobileControls) TrashGame.MobileControls.releaseAll();
     if (TrashGame.Main) TrashGame.Main.isPaused = true;
     ['modal-pause', 'modal-gameover'].forEach(id => {
       const modal = document.getElementById(id);
       if (modal) modal.classList.add('hidden');
     });
-    TrashGame.Sound.stopLoopAudio('music');
-    TrashGame.Sound.playFanfare();
-    TrashGame.Sound.playAsset('jefe/boss_defeat', 0.65);
-    TrashGame.Sound.playAsset('musica/musica_victoria', 0.35);
-    this.spawnBossTrophies();
-    if (typeof confetti === 'function') {
-      confetti({ particleCount: 180, spread: 100, origin: { y: 0.6 } });
-    }
-
-    TrashGame.State.addCoins(1000);
-    TrashGame.State.addXp(2000);
-
     document.getElementById('victory-title').textContent = '¡Titán Desmantelado!';
     document.getElementById('victory-subtitle').textContent = 'El Colosal Gólem de Residuos Tóxicos ha sido neutralizado.';
     document.getElementById('victory-coins').textContent = '+1,000 🪙';
     document.getElementById('victory-xp').textContent = '+2,000 XP';
-
     TrashGame.Main.showVictory();
+
+    // Presentation is already visible; optional audio, reward and confetti must
+    // never prevent the victory menu from opening.
+    try { TrashGame.Sound.stopLoopAudio('music'); } catch (_) { /* audio may be unavailable */ }
+    try { TrashGame.Sound.playFanfare(); } catch (_) { /* audio may be unavailable */ }
+    try { TrashGame.Sound.playAsset('jefe/boss_defeat', 0.65); } catch (_) { /* optional effect */ }
+    try { TrashGame.Sound.playAsset('musica/musica_victoria', 0.35); } catch (_) { /* optional effect */ }
+    try { this.spawnBossTrophies(); } catch (error) { console.warn('[Victory] No se pudo crear el trofeo.', error); }
+    try { if (typeof confetti === 'function') confetti({ particleCount: 180, spread: 100, origin: { y: 0.6 } }); } catch (_) { /* optional effect */ }
+    try { TrashGame.State.addCoins(1000); TrashGame.State.addXp(2000); } catch (error) { console.error('[Victory] No se pudieron guardar las recompensas.', error); }
   },
 
   spawnBossTrophies() {
