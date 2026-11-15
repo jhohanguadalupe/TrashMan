@@ -838,10 +838,10 @@ TrashGame.Main = {
       });
       TrashGame.StoryMode.updateRadar(this.player.pos, this.trashManager);
 
-      if (this.currentMode === 'MULTIPLAYER' && !TrashGame.StoryMode.isAtCapacity() && !TrashGame.StoryMode.waitingForDeposit) {
+      if (this.currentMode === 'MULTIPLAYER') {
         TrashGame.MultiplayerMode.update(dt, this.trashManager, (bonus, combo, trash) => {
           if (TrashGame.OnlineRoom && TrashGame.OnlineRoom.isConnected && TrashGame.OnlineRoom.roomStarted) TrashGame.OnlineRoom.sendTrash({ ...trash, bonus });
-          else TrashGame.StoryMode.onTrashCollected(bonus, combo);
+          else TrashGame.StoryMode.onTrashCollected(bonus, combo, { bagPickup: false });
         });
       }
     } else if (this.currentMode === 'BOSS') {
